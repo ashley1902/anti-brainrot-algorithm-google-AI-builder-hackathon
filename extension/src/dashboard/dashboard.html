@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anti Brain Rot — Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+<div class="page" id="page">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-logo">🧠</div>
+      <div>
+        <div class="header-title">Anti Brain Rot</div>
+        <div class="header-sub">Your scroll activity today</div>
+      </div>
+    </div>
+    <div class="header-date">
+      <div class="header-time" id="clock">--:--</div>
+      <div class="header-date-str" id="date-str">—</div>
+    </div>
+  </header>
+
+  <!-- Stat cards -->
+  <div class="stats-row">
+    <div class="stat-card tot">
+      <div class="stat-pill">📊 Total</div>
+      <div class="stat-value" id="stat-total">0</div>
+      <div class="stat-detail">items analyzed today</div>
+    </div>
+    <div class="stat-card yt">
+      <div class="stat-pill">▶ YouTube</div>
+      <div class="stat-value" id="stat-yt">0</div>
+      <div class="stat-detail" id="stat-yt-pct">Shorts watched</div>
+    </div>
+    <div class="stat-card ig">
+      <div class="stat-pill">◎ Instagram</div>
+      <div class="stat-value" id="stat-ig">0</div>
+      <div class="stat-detail" id="stat-ig-pct">Reels watched</div>
+    </div>
+    <div class="stat-card pos">
+      <div class="stat-pill">⚡ Avg Impact</div>
+      <div class="stat-value" id="stat-impact">—</div>
+      <div class="stat-detail">content intensity (0–1)</div>
+    </div>
+  </div>
+
+  <!-- Hourly activity -->
+  <div class="card" id="hourly-section">
+    <div class="card-title-row">
+      <div class="card-title">
+        Hourly Activity
+        <span class="card-sub" id="hourly-peak"></span>
+      </div>
+    </div>
+    <canvas id="hourly-canvas"></canvas>
+    <div class="chart-legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#d93025"></div>
+        YouTube Shorts
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#9b287a"></div>
+        Instagram Reels
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom row -->
+  <div class="bottom-row">
+
+    <!-- Emotional signals -->
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">
+          Emotional Signals
+          <span class="card-sub">average today</span>
+        </div>
+      </div>
+      <div class="emotion-list" id="emotion-list"></div>
+    </div>
+
+    <!-- Platform breakdown -->
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Platform Breakdown</div>
+      </div>
+      <div class="platform-split">
+
+        <div>
+          <div class="split-bar-labels">
+            <span style="color:var(--yt)">YouTube&nbsp;<span id="yt-pct-bar">0%</span></span>
+            <span style="color:var(--ig)">Instagram&nbsp;<span id="ig-pct-bar">0%</span></span>
+          </div>
+          <div class="split-bar-track">
+            <div class="split-bar-yt" id="split-bar" style="width:50%"></div>
+          </div>
+        </div>
+
+        <div class="platform-cards">
+          <div class="platform-card yt">
+            <div class="platform-badge">YouTube</div>
+            <div class="platform-count" id="pc-yt">0</div>
+            <div class="platform-avg" id="pc-yt-avg">avg impact —</div>
+          </div>
+          <div class="platform-card ig">
+            <div class="platform-badge">Instagram</div>
+            <div class="platform-count" id="pc-ig">0</div>
+            <div class="platform-avg" id="pc-ig-avg">avg impact —</div>
+          </div>
+        </div>
+
+        <div class="platform-emotions">
+          <div class="pe-section-label">Rage-bait by platform</div>
+          <div class="pe-row">
+            <span class="pe-name" style="color:var(--yt)">YouTube</span>
+            <div class="pe-bar-wrap"><div class="pe-bar" id="pe-yt-rage" style="background:var(--yt)"></div></div>
+            <span class="pe-val" id="pe-yt-rage-val">—</span>
+          </div>
+          <div class="pe-row">
+            <span class="pe-name" style="color:var(--ig)">Instagram</span>
+            <div class="pe-bar-wrap"><div class="pe-bar" id="pe-ig-rage" style="background:var(--ig)"></div></div>
+            <span class="pe-val" id="pe-ig-rage-val">—</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Topics -->
+  <div class="card" id="topics-section">
+    <div class="card-title-row">
+      <div class="card-title">Top Topics Today</div>
+    </div>
+    <div class="topics-cloud" id="topics-cloud"></div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="empty-state" style="display:none">
+    <div class="empty-icon">📱</div>
+    <div class="empty-title">No activity yet today</div>
+    <div class="empty-body">Start scrolling YouTube Shorts or Instagram Reels — your analysis will appear here in real time.</div>
+    <div class="empty-steps">
+      <div class="empty-step">
+        <div class="empty-step-num">1</div>
+        <span>Make sure the backend is running: <code>python -m src.server</code></span>
+      </div>
+      <div class="empty-step">
+        <div class="empty-step-num">2</div>
+        <span>Open YouTube Shorts or Instagram Reels</span>
+      </div>
+      <div class="empty-step">
+        <div class="empty-step-num">3</div>
+        <span>Scroll a few videos and come back here</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script src="dashboard.js"></script>
+</body>
+</html>

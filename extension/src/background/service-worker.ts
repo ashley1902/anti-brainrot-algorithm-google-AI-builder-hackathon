@@ -20,7 +20,8 @@
 
 import { SessionManager } from "../session/session-manager";
 import { loadSettings } from "../storage/settings";
-import type { ContentFeatures, ExtensionMessage, Settings } from "../types";
+import { computeContentImpact } from "../session/scoring";
+import type { ContentFeatures, DailyLogEntry, ExtensionMessage, Settings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 
 // ─── Session Engine ───────────────────────────────────────────────────────────
@@ -159,6 +160,28 @@ async function handleMessage(
 
       if (features) {
         sessionManager.addAnalyzedItem(features, fingerprint);
+
+        // ── Persist to daily analytics log ────────────────────────────────
+        const todayKey = `dailyLog_${new Date().toISOString().slice(0, 10)}`;
+        const entry: DailyLogEntry = {
+          timestamp: Date.now(),
+          source: source as "youtube_shorts" | "instagram_reels",
+          impact: computeContentImpact(features),
+          emotionalIntensity: features.emotionalIntensity,
+          rageBait: features.rageBait,
+          sadness: features.sadness,
+          anxietyRelated: features.anxietyRelated,
+          fomo: features.fomo,
+          socialComparison: features.socialComparison,
+          relationshipDistress: features.relationshipDistress,
+          humor: features.humor,
+          inspirational: features.inspirational,
+          topicTags: features.topicTags,
+        };
+        chrome.storage.local.get(todayKey, (res) => {
+          const existing: DailyLogEntry[] = res[todayKey] ?? [];
+          chrome.storage.local.set({ [todayKey]: [...existing, entry] });
+        });
 
         // Evaluate intervention policy
         const shouldPrompt = sessionManager.evaluateIntervention();

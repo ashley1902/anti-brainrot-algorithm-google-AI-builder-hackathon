@@ -26,6 +26,9 @@
       "run_at": "document_idle"
     }
   ],
+  "chrome_url_overrides": {
+    "newtab": "dashboard/dashboard.html"
+  },
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {

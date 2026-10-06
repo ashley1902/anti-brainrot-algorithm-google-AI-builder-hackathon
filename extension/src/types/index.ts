@@ -127,6 +127,26 @@ export const DEFAULT_SETTINGS: Settings = {
   backendUrl: "http://localhost:8787",
 };
 
+// ─── Daily Analytics Log ─────────────────────────────────────────────────────
+// One entry written to chrome.storage.local after each successful analysis.
+// Key: "dailyLog_YYYY-MM-DD". Never contains raw text.
+
+export interface DailyLogEntry {
+  timestamp: number;                              // epoch ms
+  source: "youtube_shorts" | "instagram_reels";
+  impact: number;                                 // computeContentImpact() result
+  emotionalIntensity: number;
+  rageBait: number;
+  sadness: number;
+  anxietyRelated: number;
+  fomo: number;
+  socialComparison: number;
+  relationshipDistress: number;
+  humor: number;
+  inspirational: number;
+  topicTags: string[];
+}
+
 // ─── Content Analysis Input ───────────────────────────────────────────────────
 
 export interface ContentAnalysisInput {
