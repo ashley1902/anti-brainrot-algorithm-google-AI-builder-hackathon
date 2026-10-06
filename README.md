@@ -1,236 +1,277 @@
 # 🧠 Anti Brain Rot — Chrome Extension
 
-A privacy-conscious digital-wellbeing browser extension that analyzes limited social-media content, identifies potentially unhelpful scrolling patterns, and offers gentle, user-controlled break prompts.
+A privacy-conscious digital-wellbeing Chrome extension that watches what you scroll, classifies content using AI, and gently nudges you when it detects doomscrolling patterns.
 
-> **V0.1 — text-first prototype.** Supports YouTube Shorts. Uses a local backend proxy to call DeepSeek for content classification.
-
----
-
-## ⚠️ Important caveats
-
-- **Not fully on-device in V0.1.** Content text is sent to a localhost backend which calls the DeepSeek API (a cloud service). Text leaves your device.
-- **Not a medical tool.** Scores are content-characteristic estimates, not assessments of your mood, mental health, or wellbeing.
-- **The localhost backend has no authentication or rate limiting.** It is for local development only. Do not expose it on a public network.
+**Supports:** YouTube Shorts · Instagram Reels  
+**AI:** DeepSeek (via a local backend proxy — your API key never touches the extension)  
+**Privacy:** No content is stored. All analysis is in-memory and clears when you close the browser.
 
 ---
 
-## Project structure
+## How it works
 
+1. You scroll YouTube Shorts or Instagram Reels
+2. The extension silently extracts the caption/title of each reel or short
+3. It sends the text to a **local backend** running on your machine (never to any third-party directly)
+4. The backend calls **DeepSeek AI** to classify emotional tone, anxiety signals, rage-bait, etc.
+5. After enough data, if it detects a negative pattern (rising emotional intensity, high negative exposure), it shows a gentle dismissible prompt asking if you want to take a break
+
+---
+
+## Requirements
+
+Before starting, make sure you have:
+
+| Requirement | Version | How to install |
+|---|---|---|
+| **Chrome** | Any recent version | [chrome.google.com](https://www.google.com/chrome/) |
+| **Node.js + npm** | Node ≥ 18, npm ≥ 9 | [nodejs.org](https://nodejs.org/) or `brew install node` |
+| **Python** | ≥ 3.9 | [python.org](https://www.python.org/) or `brew install python` |
+| **DeepSeek API key** | — | [platform.deepseek.com](https://platform.deepseek.com/) → API Keys |
+
+> **Don't have Node.js?** On Mac run `brew install node`. On Windows download the installer from nodejs.org.  
+> **Don't have Python?** On Mac run `brew install python`. On Windows download from python.org.
+
+---
+
+## Setup — Step by Step
+
+### Step 1 — Clone the repo
+
+```bash
+git clone https://github.com/ashley1902/anti-brainrot-extension.git
+cd anti-brainrot-extension
 ```
-anti-brain-rot/
-├── extension/          Chrome Extension (TypeScript + Webpack)
-│   ├── manifest.json
-│   ├── src/
-│   │   ├── background/ Service worker
-│   │   ├── content/    Content script + site adapters + intervention UI
-│   │   ├── session/    Scoring, trajectory, intervention policy
-│   │   ├── storage/    Settings (chrome.storage.local)
-│   │   └── popup/      Popup UI
-│   └── tests/          Unit tests (Vitest)
-├── backend/            Local dev proxy (Python FastAPI)
-│   ├── src/
-│   │   ├── providers/  AIProvider interface + DeepSeek + Mock
-│   │   ├── schemas/    Pydantic models
-│   │   ├── routes/     FastAPI routes
-│   │   └── services/   Classification service
-│   └── tests/          pytest tests
-└── docs/               Architecture + privacy docs
-```
 
 ---
 
-## Prerequisites
-
-- **Node.js** ≥ 18 and **npm** ≥ 9
-- **Python** ≥ 3.11 and **pip**
-- **Chrome** (or Chromium)
-- A **DeepSeek API key** from [platform.deepseek.com](https://platform.deepseek.com/)
-
----
-
-## Setup
-
-### 1. Clone and install extension dependencies
+### Step 2 — Build the Chrome Extension (Frontend)
 
 ```bash
 cd extension
-npm install
+npm install          # installs TypeScript, Webpack, etc.
+npm run build        # compiles everything into extension/dist/
 ```
 
-### 2. Build the extension
-
-```bash
-# Development build (with source maps, watch mode)
-npm run dev
-
-# Production build
-npm run build
+You should see:
+```
+webpack 5.x compiled successfully
 ```
 
-The built extension is output to `extension/dist/`.
+The built extension is now in `extension/dist/`.
 
-### 3. Load the extension in Chrome
+---
 
-1. Open Chrome → `chrome://extensions/`
-2. Enable **Developer mode** (top right toggle)
+### Step 3 — Load the Extension into Chrome
+
+1. Open Chrome and go to **`chrome://extensions/`**
+2. Toggle on **Developer mode** (top-right corner)
 3. Click **Load unpacked**
-4. Select the `extension/dist/` folder
+4. Select the **`extension/dist/`** folder inside this repo
 
-### 4. Set up the Python backend
+You should see "Anti Brain Rot" appear in your extensions list with a 🧠 icon.  
+Pin it to the toolbar for easy access.
+
+---
+
+### Step 4 — Set up the Python Backend
+
+The backend is a local FastAPI server that proxies AI classification requests. It keeps your API key off the extension entirely.
 
 ```bash
+# From the repo root
 cd backend
 
-# Create a virtual environment (recommended)
+# Create a virtual environment (keeps dependencies isolated)
 python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
+# Activate it
+source .venv/bin/activate       # Mac / Linux
+# .venv\Scripts\activate        # Windows
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Copy the example env file and add your DeepSeek API key
-cp .env.example .env
-# Edit .env and set DEEPSEEK_API_KEY=your_key_here
 ```
 
-### 5. Start the backend
+---
+
+### Step 5 — Add your DeepSeek API key
 
 ```bash
-cd backend
+# Still inside backend/
+cp .env.example .env
+```
+
+Open `backend/.env` in any text editor and set your key:
+
+```
+DEEPSEEK_API_KEY=sk-your-actual-key-here
+```
+
+> **No API key yet?** Go to [platform.deepseek.com](https://platform.deepseek.com/), sign up, and generate a key under **API Keys**. DeepSeek has free credits for new accounts.
+
+> **Just want to test without an API key?** Set `DEEPSEEK_API_KEY=mock` — the backend will return neutral placeholder scores so you can test the UI and session flow.
+
+---
+
+### Step 6 — Start the Backend
+
+```bash
+# From backend/ with .venv active
 python -m src.server
 ```
 
-The backend starts at **http://127.0.0.1:8787**.
-
-Verify it's running:
-```bash
-curl http://127.0.0.1:8787/health
-# → {"status":"ok"}
+You should see:
+```
+INFO: Uvicorn running on http://127.0.0.1:8787
+INFO: Application startup complete.
 ```
 
-### 6. Use the extension
+To verify it's running, open a new terminal and run:
+```bash
+curl http://127.0.0.1:8787/health
+# → {"status":"ok","version":"0.1.0"}
+```
 
-1. Navigate to `youtube.com/shorts/` in Chrome
-2. Click the Anti Brain Rot icon in the toolbar
-3. Verify monitoring is **Active**
-4. Browse through a few Shorts — the popup will update with content impact estimates
-
----
-
-## Running without a DeepSeek API key (mock mode)
-
-Set `DEEPSEEK_API_KEY=mock` in `backend/.env`. The backend will use a mock provider that returns neutral, fixed features. Session tracking and the intervention UI still work fully.
+> **Keep this terminal open** while using the extension. The backend must be running for analysis to work.
 
 ---
 
-## Running tests
+### Step 7 — Use It!
 
-### Extension tests (Vitest — pure logic, no API calls)
+1. Make sure the backend terminal is running
+2. Open **YouTube Shorts** (`youtube.com/shorts/`) or **Instagram Reels** (`instagram.com/reels/`)
+3. Click the 🧠 icon in the Chrome toolbar — you should see **"Monitoring: Active"**
+4. Scroll through a few videos
+5. Watch the popup update with **Items Analyzed**, content impact scores, and topics
+
+After scrolling ~5–10 pieces of content over 5+ minutes, if the AI detects a negative pattern, you'll see a gentle intervention prompt appear on screen.
+
+---
+
+## Project Structure
+
+```
+anti-brainrot-extension/
+├── extension/                  Chrome Extension (TypeScript + Webpack)
+│   ├── manifest.json           MV3 manifest
+│   ├── src/
+│   │   ├── background/         Service worker (message routing, session engine)
+│   │   ├── content/            Content script + site adapters
+│   │   │   └── adapters/
+│   │   │       ├── youtube-shorts.ts    YouTube Shorts extraction
+│   │   │       └── instagram-reels.ts   Instagram Reels extraction
+│   │   ├── session/            Scoring, trajectory, intervention policy
+│   │   ├── storage/            Settings (chrome.storage.local)
+│   │   └── popup/              Popup UI (HTML + CSS + TS)
+│   ├── tests/                  Unit tests (Vitest — no API calls)
+│   └── dist/                   Built extension (git-ignored, generated by npm run build)
+│
+├── backend/                    Local AI proxy (Python + FastAPI)
+│   ├── src/
+│   │   ├── providers/          AI provider interface + DeepSeek + Mock
+│   │   ├── schemas/            Pydantic request/response models
+│   │   ├── routes/             FastAPI route handlers
+│   │   └── services/           Classification orchestration
+│   ├── tests/                  pytest tests (mock provider, no API calls)
+│   ├── .env.example            Template — copy to .env and add your key
+│   └── requirements.txt        Python dependencies
+│
+└── docs/                       Architecture + privacy documentation
+```
+
+---
+
+## Running Tests
+
+### Extension (TypeScript — Vitest)
 
 ```bash
 cd extension
 npm test
 ```
 
-Tests cover: scoring formula, trajectory classification, intervention policy state machine.
+Covers: content-impact scoring formula, trajectory (OLS slope), intervention policy state machine.
 
-### Backend tests (pytest — mock provider, no API calls)
+### Backend (Python — pytest)
 
 ```bash
 cd backend
+source .venv/bin/activate
 pip install -r requirements-dev.txt
 pytest
 ```
 
-Tests cover: route validation, schema clamping, body-size limits, mock provider, health endpoint.
+Covers: API route validation, Pydantic schema clamping, mock provider, health endpoint.
 
 ---
 
 ## Configuration
 
-### Backend (`.env`)
+### Backend (`backend/.env`)
 
 | Variable | Default | Description |
 |---|---|---|
-| `DEEPSEEK_API_KEY` | _(required)_ | Your DeepSeek API key. Set to `mock` for mock mode. |
+| `DEEPSEEK_API_KEY` | _(required)_ | Your DeepSeek key. Use `mock` for offline testing. |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | API base URL |
-| `DEEPSEEK_MODEL` | `deepseek-chat` | Model name — verify in your account |
-| `PORT` | `8787` | Port the backend binds to |
+| `DEEPSEEK_MODEL` | `deepseek-chat` | Model name |
+| `PORT` | `8787` | Port the backend listens on |
 
-**To change the model:** Update `DEEPSEEK_MODEL` in `.env`. Verify the model name is available in your DeepSeek account. The model output is validated against a strict JSON schema regardless of which model is used.
+### Extension popup controls
 
-### Extension settings (popup)
-
-- **Sensitivity:** Low / Medium / High — adjusts the content-impact threshold for interventions
-- **Pause/Resume** — stops/starts extraction and analysis
-- **Clear session data** — resets in-memory session metrics
-
-### Developer thresholds (`extension/src/session/intervention-policy.ts`)
-
-These are initial experimental values — tune them during testing:
-
-| Setting | Default | Effect |
-|---|---|---|
-| `MIN_ITEMS_REQUIRED` | 5 | Items needed before intervention can fire |
-| Minimum session (settings) | 5 minutes | Session must be at least this long |
-| Medium sensitivity threshold | 0.55 | Recent impact must exceed this |
-| `HIGH_EXPOSURE_RATIO` | 0.6 | Negative-exposure fraction that triggers pattern gate |
-| Cooldown (settings) | 10 minutes | Wait after dismissal |
-| Max prompts per session (settings) | 2 | Maximum interventions per session |
+| Control | What it does |
+|---|---|
+| **Pause / Resume** | Stops or restarts content extraction |
+| **Sensitivity** | Low / Medium / High — adjusts how quickly interventions trigger |
+| **Clear session** | Resets all in-memory data for this session |
 
 ---
 
-## Supported sites (V0.1)
+## Supported Sites
 
 | Site | Status |
 |---|---|
-| YouTube Shorts (`youtube.com/shorts/*`) | ✅ Supported |
-| YouTube (standard) | ❌ Not supported in V0.1 |
-| Reddit, X, Instagram | ❌ Planned for later milestones |
-
----
-
-## Known limitations
-
-- **YouTube DOM changes frequently.** The title/description selectors may break if YouTube updates its layout. Check `extension/src/content/adapters/youtube-shorts.ts` and update selectors if extraction stops working.
-- **Service worker suspension.** MV3 service workers can be suspended. Session state resets on suspension. V0.2 can persist state to `chrome.storage.session`.
-- **Caption extraction** is not implemented in V0.1. Only the visible title and description are extracted.
-- **V0.1 is not on-device.** Text is sent to DeepSeek's cloud API via the local backend.
-- **Watch duration** is not measured in V0.1 as it cannot be reliably observed without video element instrumentation.
-- **One negative item does not trigger an intervention.** The policy requires sustained patterns (see gates above).
+| YouTube Shorts (`youtube.com/shorts/*`) | ✅ Fully supported |
+| Instagram Reels (`instagram.com/reels/*`) | ✅ Fully supported |
+| Instagram direct reel (`instagram.com/reel/ID/`) | ✅ Fully supported |
+| TikTok, Reddit, X/Twitter | 🔜 Planned |
 
 ---
 
 ## Privacy
 
-See [docs/privacy.md](docs/privacy.md) for a full breakdown of what is collected, where it goes, and your controls.
+- **No content is ever stored** — extracted text is discarded immediately after the AI call
+- **Your DeepSeek API key lives only in `backend/.env`** — it never touches the extension
+- **Session data is in-memory only** — clears when you close the browser
+- **Only your settings** (sensitivity, paused state) are persisted via `chrome.storage.local`
 
-**Summary:**
-- Raw extracted text is **never** stored by the extension
-- The DeepSeek API key is **never** in the extension code
-- Session metrics are in-memory only (cleared on session end)
-- Only user settings are persisted locally via `chrome.storage.local`
+See [docs/privacy.md](docs/privacy.md) for the full breakdown.
 
 ---
 
-## Development notes
+## Troubleshooting
 
-### Adding a new site adapter
+**Extension shows "Backend unreachable"**  
+→ Make sure the Python backend is running (`python -m src.server` in `backend/`)  
+→ Check it's on port 8787: `curl http://127.0.0.1:8787/health`
 
-1. Create `extension/src/content/adapters/<site>.ts`
-2. Implement the same extraction interface as `youtube-shorts.ts`
-3. Register it in `site-detection.ts`
-4. Add a host permission in `manifest.json`
-5. Update `AnalyzeRequest.source` pattern in the backend schema
+**No content being analyzed after scrolling**  
+→ Check the Chrome console (F12 → Console) for `[ABR]` logs  
+→ Make sure you're on `youtube.com/shorts/` or `instagram.com/reels/`  
+→ Try clicking "Clear session" in the popup and scrolling again
 
-### Switching AI providers
+**Backend shows `DEEPSEEK_API_KEY not set`**  
+→ Make sure you've created `backend/.env` (not just `.env.example`)  
+→ The key must start with `sk-`
 
-1. Implement the `AIProvider` abstract class in `backend/src/providers/`
-2. Update `classify_content.py` to select the new provider
-3. The rest of the pipeline (validation, session engine, UI) is provider-agnostic
+**Python `pip: command not found`**  
+→ Use `python3 -m pip install -r requirements.txt` instead
+
+**npm: command not found**  
+→ Install Node.js from [nodejs.org](https://nodejs.org/) or run `brew install node`
 
 ---
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md).
+See [docs/architecture.md](docs/architecture.md) for a detailed breakdown of the content extraction pipeline, session engine, and intervention policy.
