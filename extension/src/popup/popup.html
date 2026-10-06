@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anti Brain Rot</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="abr-popup">
+    <!-- Header -->
+    <header class="abr-popup-header">
+      <span class="abr-logo" aria-hidden="true">🧠</span>
+      <div>
+        <h1 class="abr-popup-title">Anti Brain Rot</h1>
+        <p class="abr-popup-subtitle" id="abr-site-label">Loading…</p>
+      </div>
+      <span class="abr-status-dot" id="abr-status-dot" aria-label="Monitoring status"></span>
+    </header>
+
+    <!-- Status bar -->
+    <section class="abr-section" aria-label="Monitoring status">
+      <div class="abr-status-row">
+        <span class="abr-label">Monitoring</span>
+        <span class="abr-value" id="abr-monitoring-status">—</span>
+      </div>
+      <div class="abr-status-row">
+        <span class="abr-label">Session duration</span>
+        <span class="abr-value" id="abr-session-duration">—</span>
+      </div>
+      <div class="abr-status-row">
+        <span class="abr-label">Items analyzed</span>
+        <span class="abr-value" id="abr-item-count">—</span>
+      </div>
+    </section>
+
+    <!-- Content impact -->
+    <section class="abr-section" aria-label="Content impact estimate">
+      <div class="abr-status-row">
+        <span class="abr-label">Recent content impact</span>
+        <span class="abr-value" id="abr-recent-impact">—</span>
+      </div>
+      <div class="abr-status-row">
+        <span class="abr-label">Session trend</span>
+        <span class="abr-value" id="abr-trend">—</span>
+      </div>
+      <div class="abr-status-row">
+        <span class="abr-label">Pattern estimate</span>
+        <span class="abr-value" id="abr-doomscroll">—</span>
+      </div>
+      <p class="abr-disclaimer">
+        Scores are content-characteristic estimates, not assessments of your mood or mental health.
+      </p>
+    </section>
+
+    <!-- Cooldown -->
+    <section class="abr-section" id="abr-cooldown-section" style="display:none" aria-label="Cooldown status">
+      <div class="abr-status-row">
+        <span class="abr-label">Cooldown ends in</span>
+        <span class="abr-value" id="abr-cooldown-remaining">—</span>
+      </div>
+    </section>
+
+    <!-- Controls -->
+    <section class="abr-section abr-controls" aria-label="Controls">
+      <button class="abr-btn abr-btn-primary" id="abr-toggle-btn" aria-pressed="true">
+        Pause monitoring
+      </button>
+      <button class="abr-btn abr-btn-secondary" id="abr-clear-btn">
+        Clear session data
+      </button>
+    </section>
+
+    <!-- Settings -->
+    <section class="abr-section" aria-label="Settings">
+      <label class="abr-label" for="abr-sensitivity">Intervention sensitivity</label>
+      <select class="abr-select" id="abr-sensitivity" aria-label="Intervention sensitivity">
+        <option value="low">Low — only very high impact patterns</option>
+        <option value="medium" selected>Medium (default)</option>
+        <option value="high">High — earlier, more frequent prompts</option>
+      </select>
+    </section>
+
+    <!-- Privacy link -->
+    <footer class="abr-footer">
+      <p>
+        In V0.1, content text is sent to a <strong>localhost proxy</strong> which calls DeepSeek (a cloud API).
+        Text is not stored by the extension. See
+        <a href="#" id="abr-privacy-link" class="abr-link">privacy info</a>.
+      </p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

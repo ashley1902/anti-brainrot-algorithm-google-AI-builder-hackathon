@@ -1,0 +1,228 @@
+/**
+ * service-worker.ts
+ *
+ * MV3 Service Worker — message router and API bridge.
+ *
+ * IMPORTANT: MV3 service workers can be suspended at any time.
+ * Do NOT rely on module-level globals as the only session store.
+ * The session engine lives here for V0.1, but is guarded by
+ * chrome.storage.session for resilience. Session state is cleared
+ * when the service worker restarts (i.e., per browser session).
+ *
+ * Responsibilities:
+ *   1. Route messages between content script and popup.
+ *   2. Call the localhost backend proxy for AI analysis.
+ *   3. Maintain in-memory session engine (SessionManager).
+ *   4. Evaluate intervention policy after each analysis.
+ *   5. Send SHOW_INTERVENTION to the content script when policy fires.
+ *   6. Enforce per-session request cap and cooldown.
+ */
+
+import { SessionManager } from "../session/session-manager";
+import { loadSettings } from "../storage/settings";
+import type { ContentFeatures, ExtensionMessage, Settings } from "../types";
+import { DEFAULT_SETTINGS } from "../types";
+
+// ─── Session Engine ───────────────────────────────────────────────────────────
+// NOTE: This is reset whenever the service worker is restarted.
+// V0.1 accepts this limitation; V0.2 can persist to chrome.storage.session.
+let sessionManager = new SessionManager(DEFAULT_SETTINGS);
+let currentSettings: Settings = DEFAULT_SETTINGS;
+
+// Per-session request cap
+const MAX_REQUESTS_PER_SESSION = 60;
+let requestsThisSession = 0;
+
+// Global fingerprint dedup — survives content script restarts.
+// Also persisted to chrome.storage.session so SW restarts within the same
+// browser session don't re-analyze content already seen.
+const seenFingerprints = new Set<string>();
+
+// Text-level dedup — catches same caption text arriving with different
+// fingerprints (e.g. multiple reels that use identical hashtag-only captions,
+// or stale DOM giving a previous reel's text to a new reel's ID).
+const seenTexts = new Set<string>();
+
+function persistFingerprints(): void {
+  // Fire-and-forget — don't block the message handler
+  chrome.storage.session
+    .set({ seenFingerprints: [...seenFingerprints] })
+    .catch(() => {});
+}
+
+// ─── Initialise ───────────────────────────────────────────────────────────────
+async function init(): Promise<void> {
+  currentSettings = await loadSettings();
+  sessionManager = new SessionManager(currentSettings);
+
+  // Restore fingerprints from previous SW lifecycle (same browser session)
+  try {
+    const stored = await chrome.storage.session.get("seenFingerprints");
+    if (Array.isArray(stored.seenFingerprints)) {
+      (stored.seenFingerprints as string[]).forEach((f) =>
+        seenFingerprints.add(f)
+      );
+      console.log(
+        `[ABR SW] Restored ${seenFingerprints.size} fingerprints from session storage`
+      );
+    }
+  } catch {
+    // chrome.storage.session not available (older Chrome) — silent fallback
+  }
+}
+
+init().catch(console.error);
+
+// ─── Backend call ─────────────────────────────────────────────────────────────
+const ANALYSIS_TIMEOUT_MS = 12000;
+
+async function callBackend(
+  text: string,
+  source: string
+): Promise<ContentFeatures | null> {
+  const url = `${currentSettings.backendUrl}/api/analyze`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ANALYSIS_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, source }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.warn(`[ABR SW] Backend returned ${response.status}`);
+      return null;
+    }
+
+    const data = (await response.json()) as ContentFeatures;
+    return data;
+  } catch (err) {
+    clearTimeout(timeout);
+    if ((err as Error).name === "AbortError") {
+      console.warn("[ABR SW] Backend request timed out.");
+    } else {
+      console.warn("[ABR SW] Backend request failed:", (err as Error).message);
+    }
+    return null;
+  }
+}
+
+// ─── Message handling ─────────────────────────────────────────────────────────
+chrome.runtime.onMessage.addListener(
+  (message: ExtensionMessage, sender, sendResponse) => {
+    handleMessage(message, sender).then(sendResponse).catch((err) => {
+      console.error("[ABR SW] Message handler error:", err);
+      sendResponse({ ok: false });
+    });
+    return true; // async response
+  }
+);
+
+async function handleMessage(
+  message: ExtensionMessage,
+  sender: chrome.runtime.MessageSender
+): Promise<unknown> {
+  switch (message.type) {
+    case "CONTENT_DETECTED": {
+      if (!currentSettings.enabled) return { ok: false, reason: "disabled" };
+      if (requestsThisSession >= MAX_REQUESTS_PER_SESSION) {
+        return { ok: false, reason: "request_cap_reached" };
+      }
+
+      const { text, source, fingerprint } = message.payload;
+
+      // Dedup by URL fingerprint — survives content script restarts
+      if (seenFingerprints.has(fingerprint)) {
+        return { ok: false, reason: "duplicate" };
+      }
+      seenFingerprints.add(fingerprint);
+      persistFingerprints();
+
+      // Dedup by text — catches same caption on multiple reel IDs
+      // (hashtag-only bait captions, stale DOM race conditions, etc.)
+      if (seenTexts.has(text)) {
+        return { ok: false, reason: "duplicate_text" };
+      }
+      seenTexts.add(text);
+
+      requestsThisSession++;
+      sessionManager.recordObservedItem();
+
+      const features = await callBackend(text, source);
+
+      // Raw text is no longer needed after the API call; it was never persisted.
+
+      if (features) {
+        sessionManager.addAnalyzedItem(features, fingerprint);
+
+        // Evaluate intervention policy
+        const shouldPrompt = sessionManager.evaluateIntervention();
+        if (shouldPrompt && sender.tab?.id !== undefined) {
+          const msg: ExtensionMessage = { type: "SHOW_INTERVENTION" };
+          chrome.tabs
+            .sendMessage(sender.tab.id, msg)
+            .catch(() => {});
+        }
+      }
+
+      return { ok: true };
+    }
+
+    case "INTERVENTION_RESPONSE": {
+      sessionManager.recordInterventionResponse(message.payload.action);
+      return { ok: true };
+    }
+
+    case "SESSION_SNAPSHOT_REQUEST": {
+      const snapshot = sessionManager.getSnapshot();
+      const response: ExtensionMessage = {
+        type: "SESSION_SNAPSHOT",
+        payload: snapshot,
+      };
+      return response;
+    }
+
+    case "SET_MONITORING": {
+      currentSettings.enabled = message.payload.enabled;
+      if (message.payload.enabled) {
+        sessionManager.resume();
+      } else {
+        sessionManager.pause();
+      }
+      // Persist updated settings
+      const { saveSettings } = await import("../storage/settings");
+      await saveSettings(currentSettings);
+      // Forward to content script in active tab
+      forwardToActiveTab(message);
+      return { ok: true };
+    }
+
+    case "CLEAR_SESSION": {
+      sessionManager.reset();
+      requestsThisSession = 0;
+      seenFingerprints.clear();
+      seenTexts.clear();
+      chrome.storage.session.remove("seenFingerprints").catch(() => {});
+      return { ok: true };
+    }
+
+    default:
+      return { ok: false, reason: "unknown_message_type" };
+  }
+}
+
+async function forwardToActiveTab(message: ExtensionMessage): Promise<void> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id !== undefined) {
+      await chrome.tabs.sendMessage(tab.id, message);
+    }
+  } catch {
+    // Tab may not have the content script.
+  }
+}

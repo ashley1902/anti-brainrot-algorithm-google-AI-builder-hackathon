@@ -1,0 +1,15 @@
+{
+  "name": "anti-brain-rot-root",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Anti Brain Rot — monorepo root. Run extension and backend separately.",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:extension": "npm --prefix extension run dev",
+    "build:extension": "npm --prefix extension run build",
+    "test:extension": "npm --prefix extension run test",
+    "test:backend": "npm --prefix backend run test",
+    "test": "npm run test:extension && npm run test:backend",
+    "install:all": "npm --prefix extension install && npm --prefix backend install"
+  }
+}

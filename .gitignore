@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+
+# Environment / secrets — never commit real API keys
+.env
+.env.local
+*.env.local
+backend/.env
+extension/dist/
+backend/dist/
+
+# OS / editor
+.DS_Store
+*.log
+coverage/
+.vitest/
+__pycache__/
+*.pyc
+.venv/
+backend/.venv/

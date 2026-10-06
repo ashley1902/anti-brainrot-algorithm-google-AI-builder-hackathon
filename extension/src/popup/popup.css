@@ -1,0 +1,206 @@
+/* popup.css — Anti Brain Rot extension popup */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f0f1a;
+  --surface: #1a1a2e;
+  --surface2: #22224a;
+  --accent: #5c6bc0;
+  --accent-light: #7986cb;
+  --text: #e8eaf6;
+  --text-muted: #9fa8da;
+  --text-dim: #5c6b9e;
+  --positive: #4caf7d;
+  --warning: #ffd54f;
+  --danger: #ef5350;
+  --radius: 10px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f6ff;
+    --surface: #fff;
+    --surface2: #e8eaf6;
+    --accent: #3949ab;
+    --accent-light: #5c6bc0;
+    --text: #1a237e;
+    --text-muted: #3949ab;
+    --text-dim: #7986cb;
+  }
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  width: 320px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.abr-popup {
+  padding: 0;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────── */
+.abr-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface2);
+}
+
+.abr-logo {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.abr-popup-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.abr-popup-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.abr-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.abr-status-dot.active { background: var(--positive); }
+.abr-status-dot.paused { background: var(--warning); }
+.abr-status-dot.unsupported { background: var(--text-dim); }
+
+/* ─── Sections ───────────────────────────────────────────────────────── */
+.abr-section {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--surface2);
+}
+
+.abr-section:last-child {
+  border-bottom: none;
+}
+
+.abr-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.abr-label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.abr-value {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+  text-align: right;
+}
+
+.abr-value.positive { color: var(--positive); }
+.abr-value.warning  { color: var(--warning); }
+.abr-value.danger   { color: var(--danger); }
+
+.abr-disclaimer {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+/* ─── Controls ───────────────────────────────────────────────────────── */
+.abr-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.abr-btn {
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: background 0.15s;
+  outline-offset: 2px;
+  text-align: center;
+}
+
+.abr-btn:focus-visible {
+  outline: 2px solid var(--accent-light);
+}
+
+.abr-btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.abr-btn-primary:hover { background: var(--accent-light); }
+
+.abr-btn-secondary {
+  background: var(--surface2);
+  color: var(--text-muted);
+}
+
+.abr-btn-secondary:hover { background: #2e2e5c; }
+
+@media (prefers-color-scheme: light) {
+  .abr-btn-secondary:hover { background: #c5cae9; }
+}
+
+/* ─── Select ─────────────────────────────────────────────────────────── */
+.abr-select {
+  width: 100%;
+  margin-top: 4px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--surface2);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  outline-offset: 2px;
+  cursor: pointer;
+}
+
+.abr-select:focus-visible {
+  outline: 2px solid var(--accent-light);
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────────── */
+.abr-footer {
+  padding: 8px 16px 12px;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.abr-link {
+  color: var(--accent-light);
+  text-decoration: none;
+}
+
+.abr-link:hover { text-decoration: underline; }
