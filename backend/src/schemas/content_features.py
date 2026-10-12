@@ -72,6 +72,7 @@ class ContentFeatures(BaseModel):
 class AnalyzeRequest(BaseModel):
     """Request body for POST /api/analyze."""
 
-    text: str = Field(..., min_length=1, max_length=800)
+    # Increased from 800 to 2000 to accommodate caption + audio track + top comments
+    text: str = Field(..., min_length=1, max_length=2000)
     source: str = Field(..., pattern=r"^(youtube_shorts|instagram_reels)$")
     language: Optional[str] = None

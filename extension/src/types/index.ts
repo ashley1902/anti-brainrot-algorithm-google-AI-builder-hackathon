@@ -99,6 +99,10 @@ export interface ExtractionResult {
   sourceType: SupportedSource | "unknown";
   fingerprint: string;
   observedAt: number;
+  /** Audio track being used in the reel/short. Undefined if original audio or not found. */
+  musicInfo?: string;
+  /** Up to 5 top-liked comments extracted from the reel/short. */
+  topComments?: string[];
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -164,6 +168,8 @@ export type ExtensionMessage =
         text: string;
         source: SupportedSource;
         fingerprint: string;
+        musicInfo?: string;
+        topComments?: string[];
       };
     }
   | {

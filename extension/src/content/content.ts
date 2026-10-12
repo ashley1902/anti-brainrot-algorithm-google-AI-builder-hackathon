@@ -124,6 +124,8 @@ async function attemptExtraction(): Promise<void> {
       text: result.text,
       source: result.sourceType as "youtube_shorts" | "instagram_reels",
       fingerprint: result.fingerprint,
+      musicInfo: result.musicInfo,
+      topComments: result.topComments,
     },
   };
 

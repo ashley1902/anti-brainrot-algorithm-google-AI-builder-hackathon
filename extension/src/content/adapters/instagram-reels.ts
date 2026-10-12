@@ -130,13 +130,93 @@ function isHashtagsOrMentionsOnly(text: string): boolean {
 function isJunk(text: string): boolean {
   if (!text || text.length < 10) return true;
   if (isUILabel(text)) return true;
-  if (isMusicAttribution(text)) return true;
+  if (isMusicAttribution(text)) return true; // captured separately via extractMusicFromDOM()
   if (isLocationTag(text)) return true;
   if (isUsername(text)) return true;
   if (isCountOrNumber(text)) return true;
   if (isBulletLabel(text)) return true;
   if (isHashtagsOrMentionsOnly(text)) return true;
   return false;
+}
+
+// ─── Music extraction ─────────────────────────────────────────────────────────
+
+/**
+ * Parse a music attribution string like "JAŸ-Z · Empire State Of Mind"
+ * into a "Artist - Song" format.  Returns "" for original audio.
+ */
+function formatMusicInfo(raw: string): string {
+  if (/original\s*(audio|sound)/i.test(raw)) return "";
+  const parts = raw.split("\u00B7").map((s) => s.trim()); // split on U+00B7 middle dot
+  if (parts.length >= 2) {
+    const artist = parts[0];
+    const song = parts.slice(1).join(" - ");
+    if (/original\s*(audio|sound)/i.test(artist) || /original\s*(audio|sound)/i.test(song)) {
+      return "";
+    }
+    return `${artist} - ${song}`;
+  }
+  return raw.trim();
+}
+
+/**
+ * Look for music attribution spans in the viewport (i.e., for the current reel).
+ * Instagram renders "Artist · Song" inside span[dir="auto"] elements.
+ * We capture instead of filtering so that DeepSeek gets audio context.
+ */
+function extractMusicFromDOM(): string {
+  const allSpans = Array.from(
+    document.querySelectorAll<HTMLElement>("span[dir='auto']")
+  );
+
+  // Prefer visible (in-viewport) spans — they belong to the currently playing reel
+  const inViewport = allSpans.filter(
+    (el) => isMusicAttribution(el.textContent?.trim() ?? "") && isInViewport(el)
+  );
+
+  const candidates = inViewport.length > 0
+    ? inViewport
+    : allSpans.filter((el) => isMusicAttribution(el.textContent?.trim() ?? ""));
+
+  const text = candidates[0]?.textContent?.trim() ?? "";
+  return text ? formatMusicInfo(text) : "";
+}
+
+// ─── Comment extraction ───────────────────────────────────────────────────────
+
+/**
+ * Best-effort extraction of comment text from the Instagram DOM.
+ *
+ * Instagram renders comments in list items (ul > li > span[dir="auto"]).
+ * The caption is typically NOT inside a <ul>, so this selector filters it out.
+ * Result quality varies — falls back to empty array if nothing useful is found.
+ */
+function extractCommentsFromDOM(captionText: string): string[] {
+  const comments: string[] = [];
+  const seen = new Set<string>();
+
+  // Comments live inside list items; the caption does not.
+  const commentSpans = Array.from(
+    document.querySelectorAll<HTMLElement>("ul span[dir='auto'], li span[dir='auto']")
+  );
+
+  for (const el of commentSpans) {
+    const text = el.textContent?.trim() ?? "";
+
+    // Basic quality gates
+    if (text.length < 10 || text.length > 400) continue;
+    if (isJunk(text)) continue;
+    if (seen.has(text)) continue;
+
+    // Skip if it's the caption we already extracted
+    if (captionText && text.startsWith(captionText.slice(0, 40))) continue;
+
+    seen.add(text);
+    comments.push(text);
+    if (comments.length >= 5) break;
+  }
+
+  return comments;
 }
 
 // ─── Caption quality score ────────────────────────────────────────────────────
@@ -340,9 +420,19 @@ export async function extractInstagramReelsContent(): Promise<ExtractionResult> 
   }
 
   const fp = computeFingerprint(reelId, text);
+
+  // Extract music and comments now that the caption is confirmed present
+  const musicInfo = extractMusicFromDOM() || undefined;
+  const topComments = extractCommentsFromDOM(text);
+
   console.log(`[ABR-IG] [${source}] "${text.slice(0, 100)}" | reelId=${reelId}`);
+  if (musicInfo) console.log(`[ABR-IG] 🎵 Music: ${musicInfo}`);
+  if (topComments.length) console.log(`[ABR-IG] 💬 Comments (${topComments.length}): ${topComments[0]?.slice(0, 60)}`);
+
   return {
     supported: true, contentAvailable: true,
     text, sourceType: "instagram_reels", fingerprint: fp, observedAt,
+    musicInfo,
+    topComments: topComments.length > 0 ? topComments : undefined,
   };
 }

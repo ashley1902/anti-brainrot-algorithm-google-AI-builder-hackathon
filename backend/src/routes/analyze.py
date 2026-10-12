@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Max body size enforced at the route level (bytes) — schema also enforces text length
-MAX_BODY_BYTES = 4096
+# Increased to accommodate caption + audio track + top 5 comments
+MAX_BODY_BYTES = 8192
 
 
 @router.post("/analyze", response_model=ContentFeatures)

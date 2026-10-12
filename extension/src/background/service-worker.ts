@@ -74,6 +74,36 @@ async function init(): Promise<void> {
 
 init().catch(console.error);
 
+// ─── Context enrichment ───────────────────────────────────────────────────────
+
+/**
+ * Build the enriched text to send to DeepSeek.
+ * Appends audio track and top comments to the caption so the AI has
+ * full context about the reel/short (Option A — all in one text field).
+ */
+function buildEnrichedText(
+  caption: string,
+  musicInfo?: string,
+  topComments?: string[]
+): string {
+  const parts: string[] = [caption];
+
+  if (musicInfo) {
+    parts.push(`\n\nAudio track: "${musicInfo}"`);
+  }
+
+  if (topComments && topComments.length > 0) {
+    const formatted = topComments
+      .slice(0, 5)
+      .map((c, i) => `  ${i + 1}. ${c}`)
+      .join("\n");
+    parts.push(`\n\nTop comments:\n${formatted}`);
+  }
+
+  // Increased limit to accommodate extra context (backend max_length also updated)
+  return parts.join("").slice(0, 2000);
+}
+
 // ─── Backend call ─────────────────────────────────────────────────────────────
 const ANALYSIS_TIMEOUT_MS = 12000;
 
@@ -135,7 +165,7 @@ async function handleMessage(
         return { ok: false, reason: "request_cap_reached" };
       }
 
-      const { text, source, fingerprint } = message.payload;
+      const { text, source, fingerprint, musicInfo, topComments } = message.payload;
 
       // Dedup by URL fingerprint — survives content script restarts
       if (seenFingerprints.has(fingerprint)) {
@@ -154,7 +184,10 @@ async function handleMessage(
       requestsThisSession++;
       sessionManager.recordObservedItem();
 
-      const features = await callBackend(text, source);
+      // Build enriched text: caption + audio track + top comments
+      const enrichedText = buildEnrichedText(text, musicInfo, topComments);
+
+      const features = await callBackend(enrichedText, source);
 
       // Raw text is no longer needed after the API call; it was never persisted.
 

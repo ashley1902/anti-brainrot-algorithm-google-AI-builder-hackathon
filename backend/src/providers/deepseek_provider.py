@@ -36,6 +36,12 @@ input is typically a short title or caption — this is expected and normal.
 A short caption alone IS sufficient context; do not set insufficientContext=true
 just because the text is brief.
 
+The input may optionally include one or both of:
+  - "Audio track: ..." — the song/music being used in the reel or short.
+    Use this to inform emotional tone (e.g. a sad song raises sadness score).
+  - "Top comments: ..." — a numbered list of viewer comments.
+    Use these to understand audience reaction (e.g. grief comments raise sadness).
+
 Only set insufficientContext=true if the text is completely meaningless (e.g.
 random characters, a single emoji with no context, or clearly corrupted text).
 
@@ -43,10 +49,9 @@ Analyze only the supplied text. Do not infer the viewer's mood, mental health,
 diagnosis, intent, or biological state. Return ONLY a valid JSON object
 matching the schema below — no markdown, no explanation, no extra keys.
 
-Score based on what the title/description signals about the content's emotional
-character. For example: a title containing "rage bait" signals high rageBait
-even if the text is short. A title about anxiety or breakups signals those
-dimensions. Be appropriately specific — do not default everything to 0.0.
+Score based on what the title/description (and any audio/comment context) signals
+about the content's emotional character. Be appropriately specific — do not
+default everything to 0.0.
 
 Do not reproduce the supplied content in your response.
 
@@ -82,7 +87,7 @@ schema from the system instruction.
 """
 
 REQUEST_TIMEOUT_S = 12.0
-MAX_TEXT_CHARS = 800  # enforced by request schema; mirrored here as a guard
+MAX_TEXT_CHARS = 2000  # enforced by request schema; mirrored here as a guard
 
 
 class DeepSeekProvider(AIProvider):
