@@ -88,52 +88,151 @@ function cleanText(raw: string): string {
     .slice(0, MAX_TEXT_CHARS);
 }
 
+/**
+ * Strip YouTube engagement metadata that sometimes leaks into DOM text.
+ * Examples caught: "6kLikes339kViews9 Oct2026", "1.2M views", "5 Sept 2026"
+ */
+function stripEngagementMetadata(text: string): string {
+  return text
+    // Likes / views counts (e.g. "6kLikes", "1.2MLikes", "339kViews")
+    .replace(/[\d,.]+\s*[kKmMbB]?\s*likes?/gi, "")
+    .replace(/[\d,.]+\s*[kKmMbB]?\s*views?/gi, "")
+    // Dates concatenated without spaces ("9 Oct2026", "9Oct2026", "Sept 2026")
+    .replace(/\d{1,2}\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s*\d{4}/gi, "")
+    .replace(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s*\d{4}/gi, "")
+    // Collapse leftover whitespace
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // ─── Music extraction ─────────────────────────────────────────────────────────
 
 /**
  * DOM selectors for the audio/music overlay shown at the bottom of a Short.
- * YouTube's DOM evolves; try multiple selectors defensively.
+ * YouTube's DOM evolves; we try many selectors defensively and log results.
  */
 const MUSIC_DOM_SELECTORS = [
-  // Active reel player header (most reliable as of mid-2026)
+  // Active reel player header
   "ytd-reel-video-renderer[is-active] ytd-reel-player-header-renderer yt-formatted-string",
   "ytd-reel-player-header-renderer .title.ytd-reel-player-header-renderer yt-formatted-string",
-  // Generic fallbacks
+  // Song/soundtrack elements
   ".ytd-reel-player-overlay-renderer .song-title yt-formatted-string",
   "ytd-reel-player-overlay-renderer yt-formatted-string.song-title",
+  "ytd-reel-player-overlay-renderer yt-formatted-string",
   "#reel-player-overlay-renderer yt-formatted-string",
+  // Broader fallbacks
+  "ytd-shorts ytd-reel-player-header-renderer yt-formatted-string",
+  "[id*='reel'][id*='overlay'] yt-formatted-string",
+  "ytm-soundtrack-info-renderer",
+  "[class*='soundtrack'] yt-formatted-string",
+  "[class*='song-title']",
+  "[class*='audio-title']",
 ];
+
+/**
+ * Read ytInitialData JSON from the embedded <script> tag.
+ * Content scripts run in an isolated JS world and cannot access
+ * window.ytInitialData set by page scripts, but can read script tag text.
+ */
+function readYtInitialData(): unknown {
+  try {
+    const scripts = Array.from(
+      document.querySelectorAll<HTMLScriptElement>("script")
+    );
+    for (const script of scripts) {
+      const text = script.textContent ?? "";
+      const idx = text.indexOf("ytInitialData");
+      if (idx === -1) continue;
+
+      // Find the JSON object starting after "ytInitialData ="
+      const eqIdx = text.indexOf("=", idx);
+      if (eqIdx === -1) continue;
+      const jsonStart = text.indexOf("{", eqIdx);
+      if (jsonStart === -1) continue;
+
+      // The script is typically: var ytInitialData = {...};
+      // Find last semicolon to trim the trailing ";window['ytInitialData']..." noise
+      const jsonStr = text.slice(jsonStart);
+      // JSON.parse will stop at the first complete object — use a bracket counter
+      let depth = 0;
+      let inStr = false;
+      let escape = false;
+      let end = -1;
+      for (let i = 0; i < jsonStr.length; i++) {
+        const ch = jsonStr[i];
+        if (escape) { escape = false; continue; }
+        if (ch === "\\" && inStr) { escape = true; continue; }
+        if (ch === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (ch === "{") depth++;
+        else if (ch === "}") {
+          depth--;
+          if (depth === 0) { end = i + 1; break; }
+        }
+      }
+      if (end === -1) continue;
+
+      return JSON.parse(jsonStr.slice(0, end));
+    }
+  } catch {
+    // Fail silently — script tags may vary
+  }
+  return null;
+}
 
 function extractMusicFromYT(): string {
   // 1. Try DOM selectors
   for (const sel of MUSIC_DOM_SELECTORS) {
-    const text = document.querySelector(sel)?.textContent?.trim();
+    const el = document.querySelector(sel);
+    const text = el?.textContent?.trim();
     if (text && text.length > 2) {
+      console.log(`[ABR-YT] 🎵 Music selector matched: ${sel} → "${text}"`);
       if (/original\s*(audio|sound)/i.test(text)) return "";
       return text;
     }
   }
+  console.log("[ABR-YT] 🎵 No music DOM selector matched");
 
-  // 2. Try window.ytInitialData for music info
+  // 2. Parse ytInitialData from script tag (script tags ARE accessible to content scripts)
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ytData = (window as any).ytInitialData;
-    if (!ytData) return "";
+    const ytData = readYtInitialData() as any;
+    if (!ytData) {
+      console.log("[ABR-YT] 🎵 ytInitialData script tag not found/parsed");
+      return "";
+    }
+    console.log("[ABR-YT] 🎵 ytInitialData parsed from script tag ✓");
 
-    // YouTube buries music info in playerOverlays or reelWatchSequenceRenderer
-    // Walk common paths; bail gracefully if structure differs
+    // Walk playerOverlays path for music/soundtrack info
     const overlays =
       ytData?.playerOverlays?.playerOverlayRenderer?.decoratedPlayerBarRenderer
         ?.decoratedPlayerBarRenderer?.playerBar?.multiMarkersPlayerBarRenderer
         ?.markersMap ?? [];
 
     for (const marker of overlays) {
-      const title: string | undefined =
-        marker?.value?.chapters?.[0]?.chapterRenderer?.title?.simpleText;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const title: string | undefined = (marker as any)?.value?.chapters?.[0]
+        ?.chapterRenderer?.title?.simpleText;
       if (title && !/original\s*(audio|sound)/i.test(title)) return title;
     }
-  } catch {
-    // ytInitialData structure varies — fail silently
+
+    // Try reelWatchSequenceRenderer path (Shorts-specific)
+    const reelItems =
+      ytData?.contents?.reelWatchSequenceRenderer?.contents ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const item of reelItems as any[]) {
+      const pivot = item?.reelItemRenderer;
+      if (!pivot) continue;
+      const trackTitle: string | undefined =
+        pivot?.musicInfo?.musicInfoRenderer?.thumbnail?.musicThumbnailRenderer
+          ?.trackName ??
+        pivot?.audioTrack?.audioTrackRenderer?.displayName?.simpleText;
+      if (trackTitle && !/original\s*(audio|sound)/i.test(trackTitle)) {
+        return trackTitle;
+      }
+    }
+  } catch (e) {
+    console.log("[ABR-YT] 🎵 ytInitialData walk error:", e);
   }
 
   return "";
@@ -151,7 +250,7 @@ function extractMusicFromYT(): string {
 function extractCommentsFromYtData(): string[] {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ytData = (window as any).ytInitialData;
+    const ytData = readYtInitialData() as any;
     if (!ytData) return [];
 
     const comments: string[] = [];
@@ -245,22 +344,27 @@ export function extractYouTubeShortsContent(): ExtractionResult {
   }
 
   // ── 3. Description / caption (optional supplement) ─────────────────────────
+  // NOTE: yt-attributed-string is intentionally excluded — it captures the full
+  // container including author name, likes, views, and date, producing junk like
+  // "6kLikes339kViews9 Oct2026". Only use specific, scoped selectors.
   const descSelectors = [
     "ytd-reel-video-renderer[is-active] #description-inline-expander",
-    "ytd-reel-video-renderer[is-active] yt-attributed-string",
     "ytd-structured-description-content-renderer",
   ];
   for (const sel of descSelectors) {
     const el = document.querySelector(sel);
-    const txt = el?.textContent?.trim();
-    if (txt && isUsableText(txt) && txt.length > 10) {
-      // Only add if it's meaningfully different from the title
-      const titleLower = (parts[0] ?? "").toLowerCase();
-      if (!titleLower.includes(txt.slice(0, 15).toLowerCase())) {
-        parts.push(cleanText(txt).slice(0, 200));
-      }
-      break;
+    const rawTxt = el?.textContent?.trim();
+    if (!rawTxt || !isUsableText(rawTxt) || rawTxt.length <= 10) continue;
+
+    const txt = stripEngagementMetadata(rawTxt);
+    if (!txt || !isUsableText(txt)) continue;
+
+    // Only add if it's meaningfully different from the title
+    const titleLower = (parts[0] ?? "").toLowerCase();
+    if (!titleLower.includes(txt.slice(0, 15).toLowerCase())) {
+      parts.push(cleanText(txt).slice(0, 200));
     }
+    break;
   }
 
   const combined = parts.join(" — ").trim();

@@ -127,6 +127,11 @@ function isHashtagsOrMentionsOnly(text: string): boolean {
   return stripped.length < 5;
 }
 
+/** Copyright / legal footer text. */
+function isCopyrightText(text: string): boolean {
+  return /^©\s*\d{4}|^copyright\s/i.test(text.trim());
+}
+
 function isJunk(text: string): boolean {
   if (!text || text.length < 10) return true;
   if (isUILabel(text)) return true;
@@ -136,6 +141,7 @@ function isJunk(text: string): boolean {
   if (isCountOrNumber(text)) return true;
   if (isBulletLabel(text)) return true;
   if (isHashtagsOrMentionsOnly(text)) return true;
+  if (isCopyrightText(text)) return true;
   return false;
 }
 
@@ -163,22 +169,25 @@ function formatMusicInfo(raw: string): string {
  * Look for music attribution spans in the viewport (i.e., for the current reel).
  * Instagram renders "Artist · Song" inside span[dir="auto"] elements.
  * We capture instead of filtering so that DeepSeek gets audio context.
+ *
+ * IMPORTANT: We only look in-viewport and do NOT fall back to off-screen spans.
+ * Off-screen spans belong to previously-viewed reels still in the DOM, and using
+ * them causes the same song to be attached to every subsequent reel.
  */
 function extractMusicFromDOM(): string {
   const allSpans = Array.from(
     document.querySelectorAll<HTMLElement>("span[dir='auto']")
   );
 
-  // Prefer visible (in-viewport) spans — they belong to the currently playing reel
+  // Only consider spans visible in the viewport — those belong to the active reel.
+  // If none are visible, return "" rather than falling back to stale DOM spans.
   const inViewport = allSpans.filter(
     (el) => isMusicAttribution(el.textContent?.trim() ?? "") && isInViewport(el)
   );
 
-  const candidates = inViewport.length > 0
-    ? inViewport
-    : allSpans.filter((el) => isMusicAttribution(el.textContent?.trim() ?? ""));
+  if (inViewport.length === 0) return "";
 
-  const text = candidates[0]?.textContent?.trim() ?? "";
+  const text = inViewport[0].textContent?.trim() ?? "";
   return text ? formatMusicInfo(text) : "";
 }
 
