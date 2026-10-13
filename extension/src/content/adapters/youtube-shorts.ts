@@ -108,26 +108,21 @@ function stripEngagementMetadata(text: string): string {
 // ─── Music extraction ─────────────────────────────────────────────────────────
 
 /**
- * DOM selectors for the audio/music overlay shown at the bottom of a Short.
- * YouTube's DOM evolves; we try many selectors defensively and log results.
+ * The reel renderer for the Short currently on screen. YouTube now reuses a
+ * single ytd-reel-video-renderer and no longer sets [is-active], so pick the
+ * one crossing the vertical centre of the viewport.
  */
-const MUSIC_DOM_SELECTORS = [
-  // Active reel player header
-  "ytd-reel-video-renderer[is-active] ytd-reel-player-header-renderer yt-formatted-string",
-  "ytd-reel-player-header-renderer .title.ytd-reel-player-header-renderer yt-formatted-string",
-  // Song/soundtrack elements
-  ".ytd-reel-player-overlay-renderer .song-title yt-formatted-string",
-  "ytd-reel-player-overlay-renderer yt-formatted-string.song-title",
-  "ytd-reel-player-overlay-renderer yt-formatted-string",
-  "#reel-player-overlay-renderer yt-formatted-string",
-  // Broader fallbacks
-  "ytd-shorts ytd-reel-player-header-renderer yt-formatted-string",
-  "[id*='reel'][id*='overlay'] yt-formatted-string",
-  "ytm-soundtrack-info-renderer",
-  "[class*='soundtrack'] yt-formatted-string",
-  "[class*='song-title']",
-  "[class*='audio-title']",
-];
+function getActiveReel(): ParentNode {
+  const reels = Array.from(document.querySelectorAll("ytd-reel-video-renderer"));
+  const mid = window.innerHeight / 2;
+  const visible = reels.find((el) => {
+    const r = el.getBoundingClientRect();
+    return r.height > 0 && r.top < mid && r.bottom > mid;
+  });
+  return visible ?? reels[0] ?? document;
+}
+
+const AUDIO_CHIPS = "yt-reel-carousel-view-model button-view-model";
 
 /**
  * Read ytInitialData JSON from the embedded <script> tag.
@@ -180,61 +175,39 @@ function readYtInitialData(): unknown {
   return null;
 }
 
-function extractMusicFromYT(): string {
-  // 1. Try DOM selectors
-  for (const sel of MUSIC_DOM_SELECTORS) {
-    const el = document.querySelector(sel);
-    const text = el?.textContent?.trim();
-    if (text && text.length > 2) {
-      console.log(`[ABR-YT] 🎵 Music selector matched: ${sel} → "${text}"`);
-      if (/original\s*(audio|sound)/i.test(text)) return "";
-      return text;
-    }
-  }
-  console.log("[ABR-YT] 🎵 No music DOM selector matched");
+/**
+ * The audio card is a <button> chip in the active Short's carousel whose text
+ * is "Song · Artist". Other carousel chips (related videos) are <a href="/watch?v=">
+ * links without the middle dot.
+ *
+ * ytInitialData is deliberately not used: it reflects only the first Short
+ * loaded and would attach the same song to every subsequent Short.
+ */
+let lastMusicText = "";
+let lastMusicVideoId = "";
 
-  // 2. Parse ytInitialData from script tag (script tags ARE accessible to content scripts)
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ytData = readYtInitialData() as any;
-    if (!ytData) {
-      console.log("[ABR-YT] 🎵 ytInitialData script tag not found/parsed");
-      return "";
-    }
-    console.log("[ABR-YT] 🎵 ytInitialData parsed from script tag ✓");
+function extractMusicFromYT(videoId: string): string {
+  const chips = Array.from(getActiveReel().querySelectorAll<HTMLElement>(AUDIO_CHIPS));
 
-    // Walk playerOverlays path for music/soundtrack info
-    const overlays =
-      ytData?.playerOverlays?.playerOverlayRenderer?.decoratedPlayerBarRenderer
-        ?.decoratedPlayerBarRenderer?.playerBar?.multiMarkersPlayerBarRenderer
-        ?.markersMap ?? [];
+  for (const chip of chips) {
+    if (chip.querySelector("a[href*='/watch']")) continue;
+    const text = chip.innerText.trim();
+    if (!text.includes("\u00B7")) continue;
 
-    for (const marker of overlays) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const title: string | undefined = (marker as any)?.value?.chapters?.[0]
-        ?.chapterRenderer?.title?.simpleText;
-      if (title && !/original\s*(audio|sound)/i.test(title)) return title;
-    }
+    console.log(`[ABR-YT] 🎵 Audio chip: "${text}"`);
+    if (text === lastMusicText && videoId !== lastMusicVideoId) return "";
+    lastMusicText = text;
+    lastMusicVideoId = videoId;
+    if (/original\s*(audio|sound)/i.test(text)) return "";
 
-    // Try reelWatchSequenceRenderer path (Shorts-specific)
-    const reelItems =
-      ytData?.contents?.reelWatchSequenceRenderer?.contents ?? [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const item of reelItems as any[]) {
-      const pivot = item?.reelItemRenderer;
-      if (!pivot) continue;
-      const trackTitle: string | undefined =
-        pivot?.musicInfo?.musicInfoRenderer?.thumbnail?.musicThumbnailRenderer
-          ?.trackName ??
-        pivot?.audioTrack?.audioTrackRenderer?.displayName?.simpleText;
-      if (trackTitle && !/original\s*(audio|sound)/i.test(trackTitle)) {
-        return trackTitle;
-      }
-    }
-  } catch (e) {
-    console.log("[ABR-YT] 🎵 ytInitialData walk error:", e);
+    const [song, ...artistParts] = text.split("\u00B7").map((s) => s.trim());
+    const artist = artistParts.join(", ");
+    return (artist ? `${artist} - ${song}` : song).slice(0, 150);
   }
 
+  console.log(
+    `[ABR-YT] 🎵 No audio chip. Carousel chips: ${JSON.stringify(chips.map((c) => c.innerText.trim()))}`
+  );
   return "";
 }
 
@@ -246,12 +219,19 @@ function extractMusicFromYT(): string {
  * YouTube embeds initial page data (including some comments) in a JS variable.
  * Comments live in engagementPanels → sectionListRenderer → itemSectionRenderer.
  * This is best-effort; on Shorts the panel may be empty on initial load.
+ * ytInitialData only describes the first page load, so it is ignored once the
+ * user has scrolled to a different Short.
  */
-function extractCommentsFromYtData(): string[] {
+function extractCommentsFromYtData(videoId: string): string[] {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ytData = readYtInitialData() as any;
     if (!ytData) return [];
+
+    const dataVideoId: string | undefined =
+      ytData?.currentVideoEndpoint?.reelWatchEndpoint?.videoId ??
+      ytData?.currentVideoEndpoint?.watchEndpoint?.videoId;
+    if (!dataVideoId || dataVideoId !== videoId) return [];
 
     const comments: string[] = [];
 
@@ -290,6 +270,9 @@ function extractCommentsFromYtData(): string[] {
 
 // ─── Extraction ───────────────────────────────────────────────────────────────
 
+let lastDescriptionText = "";
+let lastDescriptionVideoId = "";
+
 /**
  * Extract visible title/description from the current YouTube Shorts page.
  *
@@ -326,15 +309,14 @@ export function extractYouTubeShortsContent(): ExtractionResult {
   // ── 2. DOM title selectors (fallback/supplement if doc.title failed) ────────
   if (parts.length === 0) {
     const titleSelectors = [
-      "ytd-reel-video-renderer[is-active] h2.title yt-formatted-string",
-      "ytd-reel-video-renderer[is-active] #title yt-formatted-string",
-      "#title yt-formatted-string",
+      "yt-shorts-video-title-view-model",
       "h2.title yt-formatted-string",
+      "#title yt-formatted-string",
       "yt-dynamic-text-view-model h2",
       "ytd-shorts-video-title-entity-header-renderer h2",
     ];
     for (const sel of titleSelectors) {
-      const el = document.querySelector(sel);
+      const el = getActiveReel().querySelector(sel);
       const txt = el?.textContent?.trim();
       if (txt && isUsableText(txt)) {
         parts.push(cleanText(txt));
@@ -347,14 +329,18 @@ export function extractYouTubeShortsContent(): ExtractionResult {
   // NOTE: yt-attributed-string is intentionally excluded — it captures the full
   // container including author name, likes, views, and date, producing junk like
   // "6kLikes339kViews9 Oct2026". Only use specific, scoped selectors.
+  // ytd-structured-description-content-renderer is also excluded — it is a single
+  // shared panel that keeps the first-loaded Short's description indefinitely.
   const descSelectors = [
-    "ytd-reel-video-renderer[is-active] #description-inline-expander",
-    "ytd-structured-description-content-renderer",
+    "#description-inline-expander",
   ];
   for (const sel of descSelectors) {
-    const el = document.querySelector(sel);
+    const el = getActiveReel().querySelector(sel);
     const rawTxt = el?.textContent?.trim();
     if (!rawTxt || !isUsableText(rawTxt) || rawTxt.length <= 10) continue;
+    if (rawTxt === lastDescriptionText && videoId !== lastDescriptionVideoId) continue;
+    lastDescriptionText = rawTxt;
+    lastDescriptionVideoId = videoId;
 
     const txt = stripEngagementMetadata(rawTxt);
     if (!txt || !isUsableText(txt)) continue;
@@ -383,8 +369,8 @@ export function extractYouTubeShortsContent(): ExtractionResult {
   const fingerprint = computeFingerprint(videoId, combined);
 
   // Extract audio track + top comments (both best-effort, fail silently)
-  const musicInfo = extractMusicFromYT() || undefined;
-  const rawComments = extractCommentsFromYtData();
+  const musicInfo = extractMusicFromYT(videoId) || undefined;
+  const rawComments = extractCommentsFromYtData(videoId);
 
   if (musicInfo) console.log(`[ABR-YT] 🎵 Music: ${musicInfo}`);
   if (rawComments.length) console.log(`[ABR-YT] 💬 Comments (${rawComments.length}): ${rawComments[0]?.slice(0, 60)}`);
