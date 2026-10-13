@@ -214,58 +214,86 @@ function extractMusicFromYT(videoId: string): string {
 // ─── Comment extraction ───────────────────────────────────────────────────────
 
 /**
- * Extract top comments from window.ytInitialData.
- *
- * YouTube embeds initial page data (including some comments) in a JS variable.
- * Comments live in engagementPanels → sectionListRenderer → itemSectionRenderer.
- * This is best-effort; on Shorts the panel may be empty on initial load.
- * ytInitialData only describes the first page load, so it is ignored once the
- * user has scrolled to a different Short.
+ * Extract top comments from the YouTube comments panel.
+ * Confirmed DOM structure via live inspection on Shorts:
+ *   - Panel: ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"]
+ *   - Each comment: ytd-comment-thread-renderer
+ *   - innerText per thread: "@username\nN time ago\ncomment text\n[like_count]\nReply\n[· N replies]"
+ *   - Like count is a bare number (e.g. "1", "2.3K") on its own line just before "Reply"
+ * The panel only exists when the user has opened it — returns [] gracefully if not.
  */
-function extractCommentsFromYtData(videoId: string): string[] {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ytData = readYtInitialData() as any;
-    if (!ytData) return [];
+function extractCommentsFromYtPanel(): string[] {
+  const panel = document.querySelector<HTMLElement>(
+    'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"]'
+  );
+  if (!panel) return [];
 
-    const dataVideoId: string | undefined =
-      ytData?.currentVideoEndpoint?.reelWatchEndpoint?.videoId ??
-      ytData?.currentVideoEndpoint?.watchEndpoint?.videoId;
-    if (!dataVideoId || dataVideoId !== videoId) return [];
+  const threads = Array.from(
+    panel.querySelectorAll<HTMLElement>("ytd-comment-thread-renderer")
+  );
+  if (threads.length === 0) return [];
 
-    const comments: string[] = [];
+  // Lines to skip when parsing a thread's innerText
+  const JUNK_LINES = new Set([
+    "reply", "show less", "read more", "add a comment…", "comments",
+    "top is selected, so you'll see featured comments",
+  ]);
+  const TIMESTAMP_RE = /^\d+\s+(second|minute|hour|day|week|month|year)s?\s+ago$/i;
+  // Like count: bare number or abbreviated (e.g. "1", "2.3K", "1,234")
+  const LIKE_COUNT_RE = /^[\d,.]+[KkMm]?$/;
 
-    // Walk engagementPanels — comments panel identifier = "comment-item-section"
-    const panels: unknown[] = ytData?.engagementPanels ?? [];
-    for (const panel of panels) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const p = panel as any;
-      const sectionContents: unknown[] =
-        p?.engagementPanelSectionListRenderer?.content?.sectionListRenderer?.contents ?? [];
+  function parseLikeCount(s: string): number {
+    const lower = s.toLowerCase();
+    const base = parseFloat(s.replace(/,/g, ""));
+    if (isNaN(base)) return 0;
+    if (lower.endsWith("k")) return Math.round(base * 1_000);
+    if (lower.endsWith("m")) return Math.round(base * 1_000_000);
+    return Math.round(base);
+  }
 
-      for (const section of sectionContents) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const items: unknown[] = (section as any)?.itemSectionRenderer?.contents ?? [];
-        for (const item of items) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const commentRenderer = (item as any)?.commentThreadRenderer?.comment?.commentRenderer;
-          if (!commentRenderer) continue;
+  const collected: Array<{ text: string; likes: number }> = [];
 
-          const runs: Array<{ text: string }> = commentRenderer?.contentText?.runs ?? [];
-          const text = runs.map((r) => r.text).join("").trim();
+  for (const thread of threads) {
+    const lines = (thread.innerText ?? "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
 
-          if (text && text.length >= 5 && text.length <= 400) {
-            comments.push(text);
-            if (comments.length >= 5) return comments;
-          }
-        }
-      }
+    // Find @username line — marks start of comment block
+    const usernameIdx = lines.findIndex((l) => l.startsWith("@"));
+    if (usernameIdx === -1) continue;
+
+    // Find "Reply" — marks end of comment block
+    const replyIdx = lines.indexOf("Reply", usernameIdx);
+    if (replyIdx === -1) continue;
+
+    // All lines between username and Reply (exclusive)
+    const between = lines.slice(usernameIdx + 1, replyIdx).filter((l) => {
+      const lo = l.toLowerCase();
+      return !TIMESTAMP_RE.test(l) && !JUNK_LINES.has(lo) && !lo.startsWith("translate");
+    });
+
+    // If last remaining line is a bare number it's the like count
+    let likes = 0;
+    let textLines = between;
+    if (between.length > 0 && LIKE_COUNT_RE.test(between[between.length - 1])) {
+      likes = parseLikeCount(between[between.length - 1]);
+      textLines = between.slice(0, -1);
     }
 
-    return comments;
-  } catch {
-    return [];
+    const text = textLines.join(" ").replace(/\s+/g, " ").trim();
+    if (text.length >= 4 && text.length <= 400) {
+      collected.push({ text, likes });
+    }
   }
+
+  console.log(`[ABR-YT] 💬 Found ${collected.length} comments from panel`);
+
+  // Sort by likes desc — comments with 0 likes keep their original order
+  return collected
+    .sort((a, b) => b.likes - a.likes)
+    .slice(0, 5)
+    .map((c) => c.text);
 }
 
 // ─── Extraction ───────────────────────────────────────────────────────────────
@@ -370,7 +398,7 @@ export function extractYouTubeShortsContent(): ExtractionResult {
 
   // Extract audio track + top comments (both best-effort, fail silently)
   const musicInfo = extractMusicFromYT(videoId) || undefined;
-  const rawComments = extractCommentsFromYtData(videoId);
+  const rawComments = extractCommentsFromYtPanel();
 
   if (musicInfo) console.log(`[ABR-YT] 🎵 Music: ${musicInfo}`);
   if (rawComments.length) console.log(`[ABR-YT] 💬 Comments (${rawComments.length}): ${rawComments[0]?.slice(0, 60)}`);

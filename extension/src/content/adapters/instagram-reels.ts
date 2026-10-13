@@ -193,39 +193,76 @@ function extractMusicFromDOM(): string {
 
 // ─── Comment extraction ───────────────────────────────────────────────────────
 
-/**
- * Best-effort extraction of comment text from the Instagram DOM.
- *
- * Instagram renders comments in list items (ul > li > span[dir="auto"]).
- * The caption is typically NOT inside a <ul>, so this selector filters it out.
- * Result quality varies — falls back to empty array if nothing useful is found.
- */
-function extractCommentsFromDOM(captionText: string): string[] {
-  const comments: string[] = [];
-  const seen = new Set<string>();
+// ─── Comment extraction ───────────────────────────────────────────────────────
 
-  // Comments live inside list items; the caption does not.
-  const commentSpans = Array.from(
-    document.querySelectorAll<HTMLElement>("ul span[dir='auto'], li span[dir='auto']")
+/**
+ * Patterns that identify non-comment spans in the comments panel.
+ * Confirmed via live DOM inspection: all elements are flat SPAN[dir="auto"]
+ * siblings — no ul/li structure. Usernames, like counts, timestamps, and UI
+ * labels appear interleaved with actual comment text.
+ */
+const COMMENT_SKIP = [
+  /^comments?$/i,
+  /^reply$/i,
+  /^see translation$/i,
+  /^view all \d+ repl/i,
+  /^add a comment/i,
+  /^\d[\d,]*\s+likes?$/i,   // "182 likes", "1 like"
+  /^\d+\s*[wdhms]$/,         // "8 w", "2 d", "3 h" — timestamps
+];
+
+function isCommentJunk(text: string): boolean {
+  if (text.length < 5 || text.length > 400) return true;
+  if (text.includes("\u00B7")) return true;                 // music attribution
+  if (/^[a-zA-Z0-9._]+$/.test(text)) return true;          // username (no spaces)
+  if (COMMENT_SKIP.some((p) => p.test(text))) return true;
+  return false;
+}
+
+function parseLikes(text: string): number {
+  const m = text.match(/^([\d,]+)\s+likes?$/i);
+  return m ? parseInt(m[1].replace(/,/g, ""), 10) : 0;
+}
+
+/**
+ * Extract top comments from the Instagram comments panel ([role="dialog"]).
+ * The panel only exists in the DOM when the user has opened it.
+ * Comments and their like counts are flat SPAN[dir="auto"] siblings:
+ *   username → comment text → "N likes" → "Reply" → next username → …
+ * We collect (text, likes) pairs, sort by likes desc, return top 5 texts.
+ */
+function extractCommentsFromPanel(captionText: string): string[] {
+  const panel = document.querySelector<HTMLElement>('[role="dialog"]');
+  if (!panel) return [];
+
+  const spans = Array.from(
+    panel.querySelectorAll<HTMLElement>("span[dir='auto']")
   );
 
-  for (const el of commentSpans) {
-    const text = el.textContent?.trim() ?? "";
+  const captionPrefix = captionText.slice(0, 30).toLowerCase();
+  const collected: Array<{ text: string; likes: number }> = [];
 
-    // Basic quality gates
-    if (text.length < 10 || text.length > 400) continue;
-    if (isJunk(text)) continue;
-    if (seen.has(text)) continue;
+  for (let i = 0; i < spans.length; i++) {
+    const text = spans[i].textContent?.trim() ?? "";
+    if (isCommentJunk(text)) continue;
+    // Skip caption text that Instagram also shows at the top of the panel
+    if (captionPrefix && text.toLowerCase().startsWith(captionPrefix.slice(0, 20))) continue;
 
-    // Skip if it's the caption we already extracted
-    if (captionText && text.startsWith(captionText.slice(0, 40))) continue;
+    // Like count is usually in one of the next 1–3 spans
+    let likes = 0;
+    for (let j = i + 1; j < Math.min(i + 4, spans.length); j++) {
+      const l = parseLikes(spans[j].textContent?.trim() ?? "");
+      if (l > 0) { likes = l; break; }
+    }
 
-    seen.add(text);
-    comments.push(text);
-    if (comments.length >= 5) break;
+    collected.push({ text, likes });
   }
 
-  return comments;
+  // Sort by likes descending so the most-liked comments come first
+  return collected
+    .sort((a, b) => b.likes - a.likes)
+    .slice(0, 5)
+    .map((c) => c.text);
 }
 
 // ─── Caption quality score ────────────────────────────────────────────────────
@@ -432,7 +469,7 @@ export async function extractInstagramReelsContent(): Promise<ExtractionResult> 
 
   // Extract music and comments now that the caption is confirmed present
   const musicInfo = extractMusicFromDOM() || undefined;
-  const topComments = extractCommentsFromDOM(text);
+  const topComments = extractCommentsFromPanel(text);
 
   console.log(`[ABR-IG] [${source}] "${text.slice(0, 100)}" | reelId=${reelId}`);
   if (musicInfo) console.log(`[ABR-IG] 🎵 Music: ${musicInfo}`);
