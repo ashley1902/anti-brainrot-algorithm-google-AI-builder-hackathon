@@ -84,12 +84,17 @@ init().catch(console.error);
 function buildEnrichedText(
   caption: string,
   musicInfo?: string,
-  topComments?: string[]
+  topComments?: string[],
+  transcript?: string
 ): string {
   const parts: string[] = [caption];
 
   if (musicInfo) {
     parts.push(`\n\nAudio track: "${musicInfo}"`);
+  }
+
+  if (transcript) {
+    parts.push(`\n\nSpoken content (transcribed): "${transcript}"`);
   }
 
   if (topComments && topComments.length > 0) {
@@ -100,8 +105,44 @@ function buildEnrichedText(
     parts.push(`\n\nTop comments:\n${formatted}`);
   }
 
-  // Increased limit to accommodate extra context (backend max_length also updated)
   return parts.join("").slice(0, 2000);
+}
+
+// ─── Transcribe call ──────────────────────────────────────────────────────────
+const TRANSCRIBE_TIMEOUT_MS = 25000; // Whisper small CPU can take ~5–10s
+
+async function callTranscribeBackend(
+  audioUrl: string,
+  source: string
+): Promise<string> {
+  const url = `${currentSettings.backendUrl}/api/transcribe`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TRANSCRIBE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ audio_url: audioUrl, source }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!response.ok) {
+      console.warn(`[ABR SW] Transcribe returned ${response.status}`);
+      return "";
+    }
+    const data = (await response.json()) as { transcript: string };
+    console.log(`[ABR SW] 🎙️  Transcript: "${(data.transcript ?? "").slice(0, 80)}"`);
+    return data.transcript ?? "";
+  } catch (err) {
+    clearTimeout(timeout);
+    if ((err as Error).name === "AbortError") {
+      console.warn("[ABR SW] Transcribe request timed out.");
+    } else {
+      console.warn("[ABR SW] Transcribe request failed:", (err as Error).message);
+    }
+    return "";
+  }
 }
 
 // ─── Backend call ─────────────────────────────────────────────────────────────
@@ -165,7 +206,7 @@ async function handleMessage(
         return { ok: false, reason: "request_cap_reached" };
       }
 
-      const { text, source, fingerprint, musicInfo, topComments } = message.payload;
+      const { text, source, fingerprint, musicInfo, topComments, audioUrl } = message.payload;
 
       // Dedup by URL fingerprint — survives content script restarts
       if (seenFingerprints.has(fingerprint)) {
@@ -184,8 +225,17 @@ async function handleMessage(
       requestsThisSession++;
       sessionManager.recordObservedItem();
 
-      // Build enriched text: caption + audio track + top comments
-      const enrichedText = buildEnrichedText(text, musicInfo, topComments);
+      // Whisper transcription — only when no music track was identified
+      // (original audio: vlogs, comedy, talking-head content, etc.)
+      let transcript: string | undefined;
+      if (!musicInfo && audioUrl) {
+        console.log("[ABR SW] 🎙️  Original audio detected — requesting transcription…");
+        const t = await callTranscribeBackend(audioUrl, source);
+        if (t) transcript = t;
+      }
+
+      // Build enriched text: caption + [music | transcript] + comments
+      const enrichedText = buildEnrichedText(text, musicInfo, topComments, transcript);
 
       const features = await callBackend(enrichedText, source);
 

@@ -28,7 +28,8 @@ from fastapi.middleware.cors import CORSMiddleware
 # Load .env before any provider imports read env vars
 load_dotenv()
 
-from .routes.analyze import router as analyze_router  # noqa: E402
+from .routes.analyze import router as analyze_router      # noqa: E402
+from .routes.transcribe import router as transcribe_router  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,6 +68,7 @@ app.add_middleware(
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
 app.include_router(analyze_router, prefix="/api")
+app.include_router(transcribe_router, prefix="/api")
 
 
 @app.get("/health", tags=["health"])

@@ -103,6 +103,12 @@ export interface ExtractionResult {
   musicInfo?: string;
   /** Up to 5 top-liked comments extracted from the reel/short. */
   topComments?: string[];
+  /**
+   * Direct URL to the audio/video stream for Whisper transcription.
+   * Only populated when musicInfo is absent (original audio).
+   * Backend downloads this and runs faster-whisper small (CPU, int8).
+   */
+  audioUrl?: string;
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -170,6 +176,7 @@ export type ExtensionMessage =
         fingerprint: string;
         musicInfo?: string;
         topComments?: string[];
+        audioUrl?: string;
       };
     }
   | {

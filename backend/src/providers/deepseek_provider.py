@@ -36,9 +36,13 @@ input is typically a short title or caption — this is expected and normal.
 A short caption alone IS sufficient context; do not set insufficientContext=true
 just because the text is brief.
 
-The input may optionally include one or both of:
+The input may optionally include any of:
   - "Audio track: ..." — the song/music being used in the reel or short.
     Use this to inform emotional tone (e.g. a sad song raises sadness score).
+  - "Spoken content (transcribed): ..." — a speech-to-text transcript of the
+    video's audio when no music track was identified (e.g. vlogs, comedy skits,
+    talking-head videos). Use this as primary content signal when the caption
+    is short or absent.
   - "Top comments: ..." — a numbered list of viewer comments.
     Use these to understand audience reaction (e.g. grief comments raise sadness).
 

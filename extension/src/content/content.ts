@@ -126,6 +126,7 @@ async function attemptExtraction(): Promise<void> {
       fingerprint: result.fingerprint,
       musicInfo: result.musicInfo,
       topComments: result.topComments,
+      audioUrl: result.audioUrl,
     },
   };
 

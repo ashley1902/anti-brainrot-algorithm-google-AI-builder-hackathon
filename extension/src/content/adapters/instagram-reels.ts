@@ -367,61 +367,71 @@ function extractFromTitle(): string {
  *
  * This is the most reliable signal: no CSS-class fragility, no timing race.
  */
-async function fetchOgCaption(reelId: string): Promise<string> {
-  if (!reelId) return "";
+interface OgData {
+  caption: string;
+  videoUrl: string;
+}
+
+async function fetchOgData(reelId: string): Promise<OgData> {
+  const empty: OgData = { caption: "", videoUrl: "" };
+  if (!reelId) return empty;
   try {
     const resp = await fetch(`/reels/${reelId}/`, {
       method: "GET",
       credentials: "same-origin",
       headers: { Accept: "text/html,application/xhtml+xml" },
     });
-    if (!resp.ok) return "";
+    if (!resp.ok) return empty;
     const html = await resp.text();
 
-    // Grab og:description value
+    // ── Caption from og:description ─────────────────────────────────────────
     const ogMatch = html.match(
       /<meta\s+property="og:description"\s+content="([^"]+)"/i
     ) ?? html.match(
       /<meta\s+content="([^"]+)"\s+property="og:description"/i
     );
-    if (!ogMatch) return "";
 
-    let desc = ogMatch[1];
-
-    // Decode ALL HTML entities — named + numeric decimal + numeric hex
-    // e.g. &#x92b; → फ  &#39; → '  &amp; → &
-    // Using a textarea element is the simplest complete solution.
-    try {
-      const el = document.createElement("textarea");
-      el.innerHTML = desc;
-      desc = el.value;
-    } catch {
-      // Fallback: manual decode of common entities
-      desc = desc
-        .replace(/&#x([0-9a-fA-F]+);/gi, (_, h) =>
-          String.fromCodePoint(parseInt(h, 16))
-        )
-        .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
-        .replace(/&quot;/g, '"')
-        .replace(/&amp;/g, "&")
-        .replace(/&#39;/g, "'")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">");
+    let caption = "";
+    if (ogMatch) {
+      let desc = ogMatch[1];
+      try {
+        const el = document.createElement("textarea");
+        el.innerHTML = desc;
+        desc = el.value;
+      } catch {
+        desc = desc
+          .replace(/&#x([0-9a-fA-F]+);/gi, (_, h) =>
+            String.fromCodePoint(parseInt(h, 16))
+          )
+          .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, "&")
+          .replace(/&#39;/g, "'")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">");
+      }
+      desc = desc.trim()
+        .replace(/^[^:]+:\s*[""\u201C\u201D]?/, "")
+        .replace(/[""\u201C\u201D]$/, "")
+        .trim();
+      if (!isJunk(desc)) caption = desc.slice(0, MAX_TEXT_CHARS);
     }
 
-    desc = desc.trim();
+    // ── Video URL from og:video ──────────────────────────────────────────────
+    // Used by the backend to download audio for Whisper transcription when
+    // there is no identifiable music track (original audio).
+    const videoMatch = html.match(
+      /<meta\s+property="og:video(?::secure_url)?"\s+content="([^"]+)"/i
+    ) ?? html.match(
+      /<meta\s+content="([^"]+)"\s+property="og:video(?::secure_url)?"/i
+    );
+    const videoUrl = videoMatch
+      ? videoMatch[1].replace(/&amp;/g, "&")
+      : "";
 
-    // Strip Instagram's prefix: "16K likes, 17 comments - username on October 4, 2026: "caption""
-    // The format varies — strip everything up to and including the first colon + optional quote.
-    desc = desc
-      .replace(/^[^:]+:\s*[""\u201C\u201D]?/, "")
-      .replace(/[""\u201C\u201D]$/, "")
-      .trim();
-
-    if (isJunk(desc)) return "";
-    return desc.slice(0, MAX_TEXT_CHARS);
+    return { caption, videoUrl };
   } catch {
-    return "";
+    return empty;
   }
 }
 
@@ -440,9 +450,12 @@ export async function extractInstagramReelsContent(): Promise<ExtractionResult> 
   const reelId = getCurrentReelId();
   const fingerprint = computeFingerprint(reelId, "");
 
-  // Strategy 1: og:description fetch — reliable, server-rendered, exact caption
-  let text = await fetchOgCaption(reelId);
+  // Strategy 1: og:description + og:video fetch — reliable, server-rendered
+  const ogData = await fetchOgData(reelId);
+  let text = ogData.caption;
   let source = text ? "og:description" : "";
+  // Keep videoUrl for Whisper fallback (used only when musicInfo is absent)
+  const ogVideoUrl = ogData.videoUrl;
 
   // Strategy 2: DOM span[dir="auto"] with viewport filter
   if (!text) {
@@ -471,8 +484,13 @@ export async function extractInstagramReelsContent(): Promise<ExtractionResult> 
   const musicInfo = extractMusicFromDOM() || undefined;
   const topComments = extractCommentsFromPanel(text);
 
+  // Only provide the video URL for Whisper when there's no identifiable music —
+  // i.e. it's original audio and a transcript would add real context.
+  const audioUrl = !musicInfo && ogVideoUrl ? ogVideoUrl : undefined;
+
   console.log(`[ABR-IG] [${source}] "${text.slice(0, 100)}" | reelId=${reelId}`);
   if (musicInfo) console.log(`[ABR-IG] 🎵 Music: ${musicInfo}`);
+  if (audioUrl)  console.log(`[ABR-IG] 🎙️  audioUrl found (will transcribe)`);
   if (topComments.length) console.log(`[ABR-IG] 💬 Comments (${topComments.length}): ${topComments[0]?.slice(0, 60)}`);
 
   return {
@@ -480,5 +498,6 @@ export async function extractInstagramReelsContent(): Promise<ExtractionResult> 
     text, sourceType: "instagram_reels", fingerprint: fp, observedAt,
     musicInfo,
     topComments: topComments.length > 0 ? topComments : undefined,
+    audioUrl,
   };
 }

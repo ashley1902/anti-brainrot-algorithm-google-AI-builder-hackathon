@@ -124,6 +124,79 @@ function getActiveReel(): ParentNode {
 
 const AUDIO_CHIPS = "yt-reel-carousel-view-model button-view-model";
 
+// ─── Audio stream URL (for Whisper transcription) ─────────────────────────────
+
+/**
+ * Parse ytInitialPlayerResponse from the page's <script> tags.
+ * We only extract the adaptiveFormats array to avoid parsing the full
+ * (multi-MB) player response JSON.
+ */
+function extractYtAudioStreamUrl(): string {
+  try {
+    const scripts = Array.from(
+      document.querySelectorAll<HTMLScriptElement>("script")
+    );
+    for (const script of scripts) {
+      const text = script.textContent ?? "";
+      if (!text.includes("ytInitialPlayerResponse")) continue;
+      if (!text.includes("adaptiveFormats")) continue;
+
+      // Find and extract just the adaptiveFormats array
+      const afIdx = text.indexOf('"adaptiveFormats":');
+      if (afIdx === -1) continue;
+      const arrStart = text.indexOf("[", afIdx);
+      if (arrStart === -1) continue;
+
+      // Bracket counter to find end of the array
+      let depth = 0;
+      let inStr = false;
+      let escape = false;
+      let end = -1;
+      const slice = text.slice(arrStart);
+      const limit = Math.min(slice.length, 300_000); // safety cap
+
+      for (let i = 0; i < limit; i++) {
+        const ch = slice[i];
+        if (escape) { escape = false; continue; }
+        if (ch === "\\" && inStr) { escape = true; continue; }
+        if (ch === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (ch === "[" || ch === "{") depth++;
+        else if (ch === "]" || ch === "}") {
+          depth--;
+          if (depth === 0) { end = i + 1; break; }
+        }
+      }
+      if (end === -1) continue;
+
+      type AdaptiveFormat = {
+        itag?: number;
+        mimeType?: string;
+        url?: string;
+        signatureCipher?: string;
+      };
+
+      const formats = JSON.parse(slice.slice(0, end)) as AdaptiveFormat[];
+
+      // Audio-only streams have no width/height and mimeType starts with "audio/"
+      // Skip cipher-protected streams (we can't decrypt them without the player JS)
+      const audioFormats = formats.filter(
+        (f) => f.mimeType?.startsWith("audio/") && f.url && !f.signatureCipher
+      );
+
+      if (audioFormats.length === 0) return "";
+
+      // Prefer itag 140 (m4a/AAC, widest ffmpeg/whisper compatibility)
+      const preferred =
+        audioFormats.find((f) => f.itag === 140) ?? audioFormats[0];
+      return preferred?.url ?? "";
+    }
+  } catch (e) {
+    console.log("[ABR-YT] 🎙️  Audio URL extraction error:", e);
+  }
+  return "";
+}
+
 /**
  * Read ytInitialData JSON from the embedded <script> tag.
  * Content scripts run in an isolated JS world and cannot access
@@ -400,7 +473,12 @@ export function extractYouTubeShortsContent(): ExtractionResult {
   const musicInfo = extractMusicFromYT(videoId) || undefined;
   const rawComments = extractCommentsFromYtPanel();
 
+  // Only extract audio stream URL for Whisper when there is no identifiable
+  // music track (i.e. original audio — vlogs, comedy, talking-head content).
+  const audioUrl = !musicInfo ? extractYtAudioStreamUrl() || undefined : undefined;
+
   if (musicInfo) console.log(`[ABR-YT] 🎵 Music: ${musicInfo}`);
+  if (audioUrl)  console.log("[ABR-YT] 🎙️  Audio stream URL found (will transcribe)");
   if (rawComments.length) console.log(`[ABR-YT] 💬 Comments (${rawComments.length}): ${rawComments[0]?.slice(0, 60)}`);
 
   return {
@@ -412,5 +490,6 @@ export function extractYouTubeShortsContent(): ExtractionResult {
     observedAt,
     musicInfo,
     topComments: rawComments.length > 0 ? rawComments : undefined,
+    audioUrl,
   };
 }
