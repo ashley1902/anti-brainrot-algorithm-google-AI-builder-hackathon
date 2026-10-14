@@ -18,6 +18,14 @@ interface DailyLogEntry {
   relationshipDistress: number;
   humor: number;
   inspirational: number;
+  envy: number;
+  doom: number;
+  fearMongering: number;
+  dramaGossip: number;
+  clickbait: number;
+  cliffhanger: number;
+  validationSeeking: number;
+  nourishing: number;
   topicTags: string[];
 }
 
@@ -221,14 +229,24 @@ interface EmotionDef {
 }
 
 const EMOTIONS: EmotionDef[] = [
+  // ── Negative / draining signals ──────────────────────────────────
   { key: "emotionalIntensity", label: "Emotional Intensity", color: "#f97316" },
   { key: "rageBait",           label: "Rage-bait",           color: "#ef4444" },
   { key: "sadness",            label: "Sadness",             color: "#818cf8" },
   { key: "anxietyRelated",     label: "Anxiety",             color: "#f59e0b" },
   { key: "fomo",               label: "FOMO",                color: "#ec4899" },
   { key: "socialComparison",   label: "Social Comparison",   color: "#a78bfa" },
+  { key: "envy",               label: "Envy",                color: "#fb923c" },
+  { key: "doom",               label: "Doom",                color: "#64748b" },
+  { key: "fearMongering",      label: "Fear-Mongering",      color: "#dc2626" },
+  { key: "dramaGossip",        label: "Drama & Gossip",      color: "#e879f9" },
+  { key: "clickbait",          label: "Clickbait",           color: "#fbbf24" },
+  { key: "cliffhanger",        label: "Cliffhanger",         color: "#94a3b8" },
+  { key: "validationSeeking",  label: "Validation Seeking",  color: "#f472b6" },
+  // ── Positive / nourishing signals ────────────────────────────────
   { key: "humor",              label: "Humor ✦",             color: "#34d399", positive: true },
   { key: "inspirational",      label: "Inspirational ✦",     color: "#4facfe", positive: true },
+  { key: "nourishing",         label: "Nourishing ✦",        color: "#a3e635", positive: true },
 ];
 
 function renderEmotions(entries: DailyLogEntry[]): void {

@@ -79,6 +79,14 @@ Schema (all numbers must be within the stated range):
   "humor": float,                  // 0.0 to 1.0
   "educational": float,            // 0.0 to 1.0
   "inspirational": float,          // 0.0 to 1.0
+  "envy": float,                   // 0.0 to 1.0 — lifestyle/wealth/beauty flex that induces envy
+  "doom": float,                   // 0.0 to 1.0 — hopelessness, existential despair, "we're doomed"
+  "fearMongering": float,          // 0.0 to 1.0 — alarmist, exaggerated threats, panic-inducing
+  "dramaGossip": float,            // 0.0 to 1.0 — celebrity drama, gossip, scandal, relationship tea
+  "clickbait": float,              // 0.0 to 1.0 — misleading/sensational hook designed to bait clicks
+  "cliffhanger": float,            // 0.0 to 1.0 — deliberately unresolved ending to compel continued scrolling
+  "validationSeeking": float,      // 0.0 to 1.0 — fishing for likes, sympathy, or approval ("am I the only one?")
+  "nourishing": float,             // 0.0 to 1.0 — genuinely wholesome, restorative, or life-affirming
   "confidence": float,             // 0.0 to 1.0 (your confidence in this classification)
   "insufficientContext": bool
 }

@@ -313,6 +313,14 @@ async function handleMessage(
           relationshipDistress: features.relationshipDistress,
           humor: features.humor,
           inspirational: features.inspirational,
+          envy: features.envy,
+          doom: features.doom,
+          fearMongering: features.fearMongering,
+          dramaGossip: features.dramaGossip,
+          clickbait: features.clickbait,
+          cliffhanger: features.cliffhanger,
+          validationSeeking: features.validationSeeking,
+          nourishing: features.nourishing,
           topicTags: features.topicTags,
         };
         chrome.storage.local.get(todayKey, (res) => {

@@ -38,6 +38,22 @@ export interface ContentFeatures {
   educational: number;
   /** 0–1: Inspirational / uplifting content */
   inspirational: number;
+  /** 0–1: Envy-inducing content (showing off lifestyle, wealth, beauty) */
+  envy: number;
+  /** 0–1: Doom / hopelessness / existential despair themes */
+  doom: number;
+  /** 0–1: Fear-mongering / alarmist content */
+  fearMongering: number;
+  /** 0–1: Drama, gossip, celebrity scandal content */
+  dramaGossip: number;
+  /** 0–1: Clickbait — misleading or sensational hook to drive clicks */
+  clickbait: number;
+  /** 0–1: Cliffhanger — content deliberately left unresolved to compel continued scrolling */
+  cliffhanger: number;
+  /** 0–1: Validation-seeking — content fishing for likes, sympathy, or approval */
+  validationSeeking: number;
+  /** 0–1: Nourishing — genuinely wholesome, restorative, or life-affirming content */
+  nourishing: number;
   /** 0–1: Model confidence in classification */
   confidence: number;
   /** True when text was too short/ambiguous for reliable classification */
@@ -154,6 +170,14 @@ export interface DailyLogEntry {
   relationshipDistress: number;
   humor: number;
   inspirational: number;
+  envy: number;
+  doom: number;
+  fearMongering: number;
+  dramaGossip: number;
+  clickbait: number;
+  cliffhanger: number;
+  validationSeeking: number;
+  nourishing: number;
   topicTags: string[];
 }
 

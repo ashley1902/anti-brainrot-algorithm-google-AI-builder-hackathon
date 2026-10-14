@@ -41,6 +41,14 @@ class ContentFeatures(BaseModel):
     humor: float = Field(0.0, ge=0.0, le=1.0)
     educational: float = Field(0.0, ge=0.0, le=1.0)
     inspirational: float = Field(0.0, ge=0.0, le=1.0)
+    envy: float = Field(0.0, ge=0.0, le=1.0)
+    doom: float = Field(0.0, ge=0.0, le=1.0)
+    fearMongering: float = Field(0.0, ge=0.0, le=1.0)
+    dramaGossip: float = Field(0.0, ge=0.0, le=1.0)
+    clickbait: float = Field(0.0, ge=0.0, le=1.0)
+    cliffhanger: float = Field(0.0, ge=0.0, le=1.0)
+    validationSeeking: float = Field(0.0, ge=0.0, le=1.0)
+    nourishing: float = Field(0.0, ge=0.0, le=1.0)
     confidence: float = Field(1.0, ge=0.0, le=1.0)
     insufficientContext: bool = False
 
@@ -48,7 +56,10 @@ class ContentFeatures(BaseModel):
         "emotionalIntensity", "anxietyRelated", "sadness", "anger", "fear",
         "socialComparison", "relationshipDistress", "careerAnxiety",
         "financialAnxiety", "bodyImagePressure", "fomo", "rageBait",
-        "toxicity", "humor", "educational", "inspirational", "confidence",
+        "toxicity", "humor", "educational", "inspirational",
+        "envy", "doom", "fearMongering", "dramaGossip",
+        "clickbait", "cliffhanger", "validationSeeking", "nourishing",
+        "confidence",
         mode="before",
     )
     @classmethod
