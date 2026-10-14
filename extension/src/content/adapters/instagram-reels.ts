@@ -19,6 +19,26 @@
 
 import type { ExtractionResult } from "../../types";
 
+// ─── Main-world video URL capture ────────────────────────────────────────────
+// Instagram uses MSE — <video>.src is a blob: URL, unusable by the backend.
+// The real CDN URL lives in Instagram's API responses (GraphQL / REST).
+// We inject a <script> into the main world that patches window.fetch and
+// posts back any "video_url" it finds. The content script (isolated world)
+// listens for those postMessage events.
+
+let capturedVideoUrl = "";
+
+// Note: fetch patching is done in ig-video-capture.ts (MAIN world content script).
+// No inline script injection needed here.
+
+// Listen for the video URL posted back from the injected script.
+window.addEventListener("message", (e) => {
+  if (e.source === window && e.data?.type === "ABR_VIDEO_URL" && e.data.url) {
+    capturedVideoUrl = e.data.url as string;
+    console.log(`[ABR-IG] 📹 Intercepted video_url: ${capturedVideoUrl.slice(0, 80)}…`);
+  }
+});
+
 // ─── URL helpers ──────────────────────────────────────────────────────────────
 
 export function isInstagramReels(): boolean {
@@ -417,17 +437,31 @@ async function fetchOgData(reelId: string): Promise<OgData> {
       if (!isJunk(desc)) caption = desc.slice(0, MAX_TEXT_CHARS);
     }
 
-    // ── Video URL from og:video ──────────────────────────────────────────────
-    // Used by the backend to download audio for Whisper transcription when
-    // there is no identifiable music track (original audio).
-    const videoMatch = html.match(
-      /<meta\s+property="og:video(?::secure_url)?"\s+content="([^"]+)"/i
-    ) ?? html.match(
-      /<meta\s+content="([^"]+)"\s+property="og:video(?::secure_url)?"/i
-    );
-    const videoUrl = videoMatch
-      ? videoMatch[1].replace(/&amp;/g, "&")
-      : "";
+    // ── Video URL ────────────────────────────────────────────────────────────
+    // Used by the backend to download audio for Whisper transcription.
+    // Strategy 1: "video_url":"https://scontent..." in the embedded page JSON
+    //   (Instagram always includes this in the server-rendered HTML blob)
+    // Strategy 2: og:video meta tag (present on some reels, absent on others)
+    // Note: <video>.src in the DOM is a blob: URL — unusable by the backend.
+    let videoUrl = "";
+
+    // Strategy 1: look for "video_url":"..." in the page JSON
+    const jsonVideoMatch = html.match(/"video_url"\s*:\s*"(https?:[^"]+)"/);
+    if (jsonVideoMatch) {
+      videoUrl = jsonVideoMatch[1]
+        .replace(/\\u0026/g, "&")   // \u0026 → &
+        .replace(/\\\//g, "/");     // \/ → /
+    }
+
+    // Strategy 2: og:video meta tag fallback
+    if (!videoUrl) {
+      const ogMatch2 = html.match(
+        /<meta\s+property="og:video(?::secure_url)?"\s+content="([^"]+)"/i
+      ) ?? html.match(
+        /<meta\s+content="([^"]+)"\s+property="og:video(?::secure_url)?"/i
+      );
+      if (ogMatch2) videoUrl = ogMatch2[1].replace(/&amp;/g, "&");
+    }
 
     return { caption, videoUrl };
   } catch {
@@ -484,9 +518,12 @@ export async function extractInstagramReelsContent(): Promise<ExtractionResult> 
   const musicInfo = extractMusicFromDOM() || undefined;
   const topComments = extractCommentsFromPanel(text);
 
-  // Only provide the video URL for Whisper when there's no identifiable music —
-  // i.e. it's original audio and a transcript would add real context.
-  const audioUrl = !musicInfo && ogVideoUrl ? ogVideoUrl : undefined;
+  // Only provide an audio URL for Whisper when there's no identifiable music.
+  // Prefer the URL intercepted from Instagram's API response (most reliable).
+  // Fall back to ogVideoUrl from the page fetch (rarely populated for logged-in users).
+  const audioUrl = !musicInfo
+    ? (capturedVideoUrl || ogVideoUrl || undefined)
+    : undefined;
 
   console.log(`[ABR-IG] [${source}] "${text.slice(0, 100)}" | reelId=${reelId}`);
   if (musicInfo) console.log(`[ABR-IG] 🎵 Music: ${musicInfo}`);

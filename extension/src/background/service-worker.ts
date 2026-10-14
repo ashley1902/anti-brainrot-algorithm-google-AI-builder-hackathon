@@ -74,6 +74,48 @@ async function init(): Promise<void> {
 
 init().catch(console.error);
 
+// ─── SW keepalive (prevent suspension during async work) ─────────────────────
+// MV3 service workers are aggressively suspended. We set up a 20s alarm so
+// Chrome keeps the SW alive while waiting for Whisper / backend responses.
+chrome.alarms.create("keepalive", { periodInMinutes: 0.4 }); // every ~24s
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "keepalive") {
+    // Touch storage to prove we're alive — prevents Chrome from killing us
+    chrome.storage.session.set({ swLastPing: Date.now() }).catch(() => {});
+  }
+});
+console.log("[ABR SW] 🟢 Service worker started");
+
+// ─── Instagram CDN video URL capture (webRequest) ────────────────────────────
+// When Instagram streams a reel, the browser fetches the actual .mp4 file from
+// scontent*.cdninstagram.com. We intercept that request passively (MV3 still
+// allows read-only webRequest observation) and store it per tab.
+// This gives us a real downloadable URL even though <video>.src is a blob: URL
+// and the server-rendered HTML doesn't include the video URL for logged-in users.
+const tabVideoUrls = new Map<number, string>(); // tabId → latest CDN video URL
+
+chrome.webRequest.onBeforeRequest.addListener(
+  (details) => {
+    if (details.tabId < 0) return;
+    const url = details.url;
+    // Capture any video-like URL from Instagram's CDN domains.
+    // Instagram uses MSE — video chunks arrive via XHR/fetch, NOT as <video> media requests.
+    // CDN domains: scontent*.cdninstagram.com, scontent*.fbcdn.net (Facebook CDN)
+    if (url.includes(".mp4") || url.includes(".m4v") || url.includes(".m4a")) {
+      tabVideoUrls.set(details.tabId, url);
+      console.log(`[ABR SW] 📹 CDN video captured for tab ${details.tabId}: ${url.slice(0, 100)}…`);
+    }
+  },
+  {
+    urls: [
+      "https://*.cdninstagram.com/*",
+      "https://*.fbcdn.net/*",
+      "https://*.instagram.com/*",
+    ],
+    types: ["xmlhttprequest", "media", "other"],
+  }
+);
+
 // ─── Context enrichment ───────────────────────────────────────────────────────
 
 /**
@@ -206,10 +248,21 @@ async function handleMessage(
         return { ok: false, reason: "request_cap_reached" };
       }
 
-      const { text, source, fingerprint, musicInfo, topComments, audioUrl } = message.payload;
+      const { text, source, fingerprint, musicInfo, topComments, audioUrl: adapterAudioUrl } = message.payload;
+
+      // For Instagram: supplement the adapter's audioUrl with the CDN URL
+      // captured via webRequest (real downloadable URL, not a blob:).
+      const tabId = sender.tab?.id;
+      const cdnVideoUrl = (source === "instagram_reels" && tabId !== undefined)
+        ? tabVideoUrls.get(tabId)
+        : undefined;
+      const audioUrl = adapterAudioUrl || cdnVideoUrl;
+
+      console.log(`[ABR SW] 📨 CONTENT_DETECTED: src=${source} fp=${fingerprint} hasMusic=${!!musicInfo}`);
 
       // Dedup by URL fingerprint — survives content script restarts
       if (seenFingerprints.has(fingerprint)) {
+        console.log(`[ABR SW] ⏭️  Skipping duplicate fingerprint: ${fingerprint}`);
         return { ok: false, reason: "duplicate" };
       }
       seenFingerprints.add(fingerprint);
@@ -218,6 +271,7 @@ async function handleMessage(
       // Dedup by text — catches same caption on multiple reel IDs
       // (hashtag-only bait captions, stale DOM race conditions, etc.)
       if (seenTexts.has(text)) {
+        console.log(`[ABR SW] ⏭️  Skipping duplicate text`);
         return { ok: false, reason: "duplicate_text" };
       }
       seenTexts.add(text);

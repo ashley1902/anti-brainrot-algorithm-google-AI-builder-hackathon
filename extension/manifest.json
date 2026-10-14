@@ -3,11 +3,12 @@
   "name": "Anti Brain Rot",
   "version": "0.1.0",
   "description": "A digital-wellbeing assistant that notices potentially unhelpful scrolling patterns.",
-  "permissions": ["storage", "activeTab", "tabs"],
+  "permissions": ["storage", "activeTab", "tabs", "webRequest", "alarms"],
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://www.instagram.com/*",
     "https://instagram.com/*",
+    "https://*.cdninstagram.com/*",
     "http://localhost:8787/*",
     "http://127.0.0.1:8787/*"
   ],
@@ -24,6 +25,15 @@
       ],
       "js": ["content/content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.instagram.com/*",
+        "https://instagram.com/*"
+      ],
+      "js": ["content/ig-video-capture.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "chrome_url_overrides": {

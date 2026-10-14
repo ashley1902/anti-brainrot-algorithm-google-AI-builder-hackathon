@@ -130,10 +130,12 @@ async function attemptExtraction(): Promise<void> {
     },
   };
 
+  console.log("[ABR] → Sending CONTENT_DETECTED to SW…");
   try {
-    await chrome.runtime.sendMessage(msg);
+    const resp = await chrome.runtime.sendMessage(msg);
+    console.log("[ABR] ✅ SW acknowledged:", resp);
   } catch (err) {
-    console.debug("[ABR] Could not send CONTENT_DETECTED:", err);
+    console.warn("[ABR] ❌ Could not send CONTENT_DETECTED:", err);
   }
 }
 

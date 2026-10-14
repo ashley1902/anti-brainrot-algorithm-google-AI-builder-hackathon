@@ -29,11 +29,13 @@ def _get_model():
         try:
             from faster_whisper import WhisperModel  # type: ignore
             logger.info("[Whisper] Loading small model (CPU, int8) — first request only…")
+            print("\n🤖 [Whisper] Loading small model (CPU, int8) — this takes ~3–5s on first call…", flush=True)
             _whisper_model = WhisperModel(
                 "small",
                 device="cpu",
                 compute_type="int8",
             )
+            print("✅ [Whisper] Model ready!\n", flush=True)
             logger.info("[Whisper] Model ready.")
         except ImportError:
             raise RuntimeError(

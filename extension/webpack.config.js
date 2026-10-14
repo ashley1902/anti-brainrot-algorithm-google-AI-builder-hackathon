@@ -8,6 +8,7 @@ module.exports = (env, argv) => {
     entry: {
       "background/service-worker": "./src/background/service-worker.ts",
       "content/content": "./src/content/content.ts",
+      "content/ig-video-capture": "./src/content/ig-video-capture.ts",
       "popup/popup": "./src/popup/popup.ts",
       "dashboard/dashboard": "./src/dashboard/dashboard.ts",
     },
