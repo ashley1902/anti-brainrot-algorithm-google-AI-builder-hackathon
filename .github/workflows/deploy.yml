@@ -22,18 +22,19 @@ jobs:
 
     permissions:
       contents: read
-      id-token: write   # needed for Workload Identity Federation (optional, see below)
+      id-token: write   # required for Workload Identity Federation (keyless auth)
 
     steps:
       # ── 1. Checkout ─────────────────────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── 2. Authenticate to GCP ───────────────────────────────────────────────
+      # ── 2. Authenticate to GCP via Workload Identity Federation (no keys!) ──
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       # ── 3. Set up gcloud ─────────────────────────────────────────────────────
       - name: Set up Cloud SDK
@@ -92,8 +93,8 @@ jobs:
             --region ${{ env.REGION }} \
             --format 'value(status.url)' \
             --project ${{ secrets.GCP_PROJECT_ID }})
-          echo "✅ Deployed: $URL"
+          echo "Deployed: $URL"
           echo "SERVICE_URL=$URL" >> $GITHUB_STEP_SUMMARY
-          echo "## ✅ Deployment successful" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment successful" >> $GITHUB_STEP_SUMMARY
           echo "**URL:** $URL" >> $GITHUB_STEP_SUMMARY
           echo "**Image:** ${{ env.IMAGE }}:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
