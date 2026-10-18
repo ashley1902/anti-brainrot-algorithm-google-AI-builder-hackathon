@@ -150,7 +150,7 @@ export const DEFAULT_SETTINGS: Settings = {
   minimumSessionMinutes: 5,
   cooldownMinutes: 10,
   maxPromptsPerSession: 2,
-  backendUrl: "http://localhost:8787",
+  backendUrl: "https://anti-brain-rot-backend-884089189591.us-central1.run.app",
 };
 
 //  Daily Analytics Log 
