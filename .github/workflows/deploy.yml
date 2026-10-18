@@ -1,12 +1,11 @@
 name: Deploy to Cloud Run
 
-# Triggers only on pushes to the deploy branch
 on:
   push:
     branches:
-      - deploy
+      - main
     paths:
-      - "backend/**"          # only re-deploy if backend code changed
+      - "backend/**"
       - ".github/workflows/deploy.yml"
 
 env:
