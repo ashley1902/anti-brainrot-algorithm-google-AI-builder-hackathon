@@ -12,7 +12,7 @@ import { loadSettings, saveSettings } from "../storage/settings";
 
 let settings: Settings = DEFAULT_SETTINGS;
 
-// ─── DOM helpers ──────────────────────────────────────────────────────────────
+//  DOM helpers 
 function $(id: string): HTMLElement | null {
   return document.getElementById(id);
 }
@@ -36,19 +36,19 @@ function formatDuration(ms: number): string {
 
 function formatImpact(value: number): { text: string; cls: string } {
   const pct = Math.round(value * 100);
-  if (value < 0.35) return { text: `${pct}% — Low`, cls: "positive" };
-  if (value < 0.6) return { text: `${pct}% — Moderate`, cls: "warning" };
-  return { text: `${pct}% — High`, cls: "danger" };
+  if (value < 0.35) return { text: `${pct}%  Low`, cls: "positive" };
+  if (value < 0.6) return { text: `${pct}%  Moderate`, cls: "warning" };
+  return { text: `${pct}%  High`, cls: "danger" };
 }
 
 const TREND_LABELS: Record<string, string> = {
   insufficient_data: "Insufficient data",
   stable: "Stable",
-  increasing: "↑ Increasing",
-  decreasing: "↓ Decreasing",
+  increasing: " Increasing",
+  decreasing: " Decreasing",
 };
 
-// ─── Render snapshot ──────────────────────────────────────────────────────────
+//  Render snapshot 
 function renderSnapshot(snapshot: SessionSnapshot): void {
   const { text: impactText, cls: impactCls } = formatImpact(snapshot.recentContentImpact);
   const { text: doomText, cls: doomCls } = formatImpact(snapshot.doomscrollHeuristic);
@@ -70,7 +70,7 @@ function renderSnapshot(snapshot: SessionSnapshot): void {
     dot?.classList.remove("active", "unsupported");
     dot?.classList.add("paused");
   } else {
-    stateEl && (stateEl.textContent = "Active — " + state);
+    stateEl && (stateEl.textContent = "Active  " + state);
     dot?.classList.remove("paused", "unsupported");
     dot?.classList.add("active");
   }
@@ -94,7 +94,7 @@ function renderSnapshot(snapshot: SessionSnapshot): void {
   }
 }
 
-// ─── Fetch snapshot ───────────────────────────────────────────────────────────
+//  Fetch snapshot 
 async function fetchSnapshot(): Promise<void> {
   try {
     const msg: ExtensionMessage = { type: "SESSION_SNAPSHOT_REQUEST" };
@@ -107,7 +107,7 @@ async function fetchSnapshot(): Promise<void> {
   }
 }
 
-// ─── Site detection for label ─────────────────────────────────────────────────
+//  Site detection for label 
 async function updateSiteLabel(): Promise<void> {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -115,13 +115,13 @@ async function updateSiteLabel(): Promise<void> {
     const siteLabel = $("abr-site-label");
     if (!siteLabel) return;
     if (url.includes("youtube.com/shorts")) {
-      siteLabel.textContent = "YouTube Shorts — supported ✓";
+      siteLabel.textContent = "YouTube Shorts  supported ";
     } else if (url.includes("instagram.com/reel")) {
-      siteLabel.textContent = "Instagram Reels — supported ✓";
+      siteLabel.textContent = "Instagram Reels  supported ";
     } else if (url.includes("youtube.com")) {
-      siteLabel.textContent = "YouTube — navigate to Shorts";
+      siteLabel.textContent = "YouTube  navigate to Shorts";
     } else if (url.includes("instagram.com")) {
-      siteLabel.textContent = "Instagram — navigate to a Reel";
+      siteLabel.textContent = "Instagram  navigate to a Reel";
     } else {
       siteLabel.textContent = "Unsupported page";
       const dot = $("abr-status-dot");
@@ -133,7 +133,7 @@ async function updateSiteLabel(): Promise<void> {
   }
 }
 
-// ─── Event listeners ──────────────────────────────────────────────────────────
+//  Event listeners 
 function bindControls(): void {
   $("abr-toggle-btn")?.addEventListener("click", async () => {
     const newEnabled = !settings.enabled;
@@ -167,7 +167,7 @@ function bindControls(): void {
   });
 }
 
-// ─── Bootstrap ────────────────────────────────────────────────────────────────
+//  Bootstrap 
 async function init(): Promise<void> {
   settings = await loadSettings();
 

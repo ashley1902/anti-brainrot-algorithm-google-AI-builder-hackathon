@@ -22,7 +22,7 @@ from ..services.classify_content import classify_content
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Max body size enforced at the route level (bytes) — schema also enforces text length
+# Max body size enforced at the route level (bytes)  schema also enforces text length
 # Increased to accommodate caption + audio track + top 5 comments
 MAX_BODY_BYTES = 8192
 
@@ -53,5 +53,5 @@ async def analyze_content(request: Request) -> JSONResponse:
             raise HTTPException(status_code=429, detail="AI provider rate limit reached.")
         raise HTTPException(status_code=502, detail="AI provider error. Check backend logs.")
 
-    # Return only the feature object — never echo back the input text
+    # Return only the feature object  never echo back the input text
     return JSONResponse(content=features.model_dump())

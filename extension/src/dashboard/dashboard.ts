@@ -1,7 +1,7 @@
 /**
- * dashboard.ts — Anti Brain Rot dashboard
+ * dashboard.ts  Anti Brain Rot dashboard
  *
- * Data pipeline is unchanged — reads DailyLogEntry[] from chrome.storage.local.
+ * Data pipeline is unchanged  reads DailyLogEntry[] from chrome.storage.local.
  * Rendering is completely redesigned to match the new amber glass UI.
  */
 
@@ -29,7 +29,7 @@ interface DailyLogEntry {
   topicTags: string[];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+//  Helpers 
 
 function todayKey(): string {
   return `dailyLog_${new Date().toISOString().slice(0, 10)}`;
@@ -63,16 +63,16 @@ function svgEl<T extends SVGElement>(tag: string, attrs: Record<string, string |
   return el;
 }
 
-// ─── Date subtitle ────────────────────────────────────────────────────────────
+//  Date subtitle 
 
 function initDateSubtitle(): void {
   const el = document.getElementById("date-str");
   if (!el) return;
   const now = new Date();
   const dayStr = now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-  el.textContent = `Your scroll activity · ${dayStr} · live tracking`;
+  el.textContent = `Your scroll activity  ${dayStr}  live tracking`;
 
-  // Profile avatar — first letter of the weekday
+  // Profile avatar  first letter of the weekday
   const avatarEl = document.getElementById("avatar-letter");
   if (avatarEl) {
     const letter = now.toLocaleDateString(undefined, { weekday: "short" })[0].toUpperCase();
@@ -84,7 +84,7 @@ function initDateSubtitle(): void {
   }
 }
 
-// ─── Stat strip ───────────────────────────────────────────────────────────────
+//  Stat strip 
 
 function renderStats(entries: DailyLogEntry[]): void {
   const total   = entries.length;
@@ -97,12 +97,12 @@ function renderStats(entries: DailyLogEntry[]): void {
   setText("stat-ig",    String(igCount));
 
   // Impact card (right column)
-  setText("stat-impact", total ? fmt2(impact) : "—");
-  const status = !total ? "—" : impact < 0.15 ? "Calm" : impact < 0.30 ? "Moderate" : "Elevated";
+  setText("stat-impact", total ? fmt2(impact) : "");
+  const status = !total ? "" : impact < 0.15 ? "Calm" : impact < 0.30 ? "Moderate" : "Elevated";
   setText("impact-status", status);
 }
 
-// ─── Hourly activity — smooth SVG curve ──────────────────────────────────────
+//  Hourly activity  smooth SVG curve 
 
 function renderHourlyChart(entries: DailyLogEntry[]): void {
   const container = document.getElementById("chart");
@@ -121,7 +121,7 @@ function renderHourlyChart(entries: DailyLogEntry[]): void {
   const peakH  = totals.indexOf(Math.max(...totals));
   if (totals[peakH] > 0) {
     const lbl = formatHour(peakH);
-    setText("hourly-peak", `Peak ${totals[peakH]} items at ${lbl} · avg ${Math.round(totals.reduce((a,b)=>a+b,0)/24)}/hr`);
+    setText("hourly-peak", `Peak ${totals[peakH]} items at ${lbl}  avg ${Math.round(totals.reduce((a,b)=>a+b,0)/24)}/hr`);
   }
 
   const W = 680, H = 230, L = 12, R = 12, T = 32, B = 28, base = H - B;
@@ -133,7 +133,7 @@ function renderHourlyChart(entries: DailyLogEntry[]): void {
   container.innerHTML = "";
   container.appendChild(svg);
 
-  // Defs — gradients
+  // Defs  gradients
   const defs = svgEl("defs", {}, svg);
   const mkGrad = (id: string, c1: string, c2: string) => {
     const g = svgEl("linearGradient", { id, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
@@ -219,7 +219,7 @@ function formatHour(h: number): string {
   return h < 12 ? `${h} am` : `${h - 12} pm`;
 }
 
-// ─── Emotional signals — full bar list ───────────────────────────────────────
+//  Emotional signals  full bar list 
 
 interface EmotionDef {
   key: keyof DailyLogEntry;
@@ -229,7 +229,7 @@ interface EmotionDef {
 }
 
 const EMOTIONS: EmotionDef[] = [
-  // ── Negative / draining signals ──────────────────────────────────
+  //  Negative / draining signals 
   { key: "emotionalIntensity", label: "Emotional Intensity", color: "#f97316" },
   { key: "rageBait",           label: "Rage-bait",           color: "#ef4444" },
   { key: "sadness",            label: "Sadness",             color: "#818cf8" },
@@ -243,10 +243,10 @@ const EMOTIONS: EmotionDef[] = [
   { key: "clickbait",          label: "Clickbait",           color: "#fbbf24" },
   { key: "cliffhanger",        label: "Cliffhanger",         color: "#94a3b8" },
   { key: "validationSeeking",  label: "Validation Seeking",  color: "#f472b6" },
-  // ── Positive / nourishing signals ────────────────────────────────
-  { key: "humor",              label: "Humor ✦",             color: "#34d399", positive: true },
-  { key: "inspirational",      label: "Inspirational ✦",     color: "#4facfe", positive: true },
-  { key: "nourishing",         label: "Nourishing ✦",        color: "#a3e635", positive: true },
+  //  Positive / nourishing signals 
+  { key: "humor",              label: "Humor ",             color: "#34d399", positive: true },
+  { key: "inspirational",      label: "Inspirational ",     color: "#4facfe", positive: true },
+  { key: "nourishing",         label: "Nourishing ",        color: "#a3e635", positive: true },
 ];
 
 function renderEmotions(entries: DailyLogEntry[]): void {
@@ -274,7 +274,7 @@ function renderEmotions(entries: DailyLogEntry[]): void {
   });
 }
 
-// ─── Platform breakdown ───────────────────────────────────────────────────────
+//  Platform breakdown 
 
 function renderPlatformSplit(entries: DailyLogEntry[]): void {
   const ytEntries = entries.filter(e => e.source === "youtube_shorts");
@@ -291,7 +291,7 @@ function renderPlatformSplit(entries: DailyLogEntry[]): void {
   setText("pc-ig", String(igEntries.length));
 
   const ytBreak = document.getElementById("yt-breakdown");
-  if (ytBreak) ytBreak.textContent = `${ytEntries.length} · ${ytPct}%`;
+  if (ytBreak) ytBreak.textContent = `${ytEntries.length}  ${ytPct}%`;
 
   // Bars
   const igBar = document.getElementById("ig-bar") as HTMLElement | null;
@@ -301,7 +301,7 @@ function renderPlatformSplit(entries: DailyLogEntry[]): void {
 
   // Footer
   setText("platform-foot",
-    `Avg impact — Instagram ${igEntries.length ? fmt2(igAvg) : "—"} · YouTube ${ytEntries.length ? fmt2(ytAvg) : "—"}`
+    `Avg impact  Instagram ${igEntries.length ? fmt2(igAvg) : ""}  YouTube ${ytEntries.length ? fmt2(ytAvg) : ""}`
   );
 
   // Donut SVG
@@ -324,7 +324,7 @@ function renderPlatformSplit(entries: DailyLogEntry[]): void {
   t.textContent = `${igPct}%`;
 }
 
-// ─── Topics — list view + bubble view ────────────────────────────────────────
+//  Topics  list view + bubble view 
 
 // Gradient pairs for topic avatars (cycles through)
 const GRAD_PAIRS: [string, string][] = [
@@ -368,7 +368,7 @@ function renderTopicsListView(sorted: [string, number][], maxShow = 5): void {
         <div class="tn">${tag}</div>
         <div class="ts">${count} mention${count !== 1 ? "s" : ""} today</div>
       </div>
-      <span class="pill solid">×${count}</span>
+      <span class="pill solid">${count}</span>
     `;
     el.appendChild(row);
   });
@@ -389,9 +389,9 @@ function renderTopicsBubbleView(sorted: [string, number][]): void {
 
   top.forEach(([tag, count], i) => {
     const ratio = count / maxCount;
-    // Size: 44px (smallest) → 90px (largest)
+    // Size: 44px (smallest)  90px (largest)
     const size = Math.round(44 + ratio * 46);
-    // Opacity: 0.35 (dimmest) → 1.0 (brightest)
+    // Opacity: 0.35 (dimmest)  1.0 (brightest)
     const opacity = (0.35 + ratio * 0.65).toFixed(2);
     const [g1, g2] = GRAD_PAIRS[i % GRAD_PAIRS.length];
 
@@ -406,7 +406,7 @@ function renderTopicsBubbleView(sorted: [string, number][]): void {
     `;
     const lbl = document.createElement("div");
     lbl.className = "bubble-label";
-    lbl.textContent = count > 1 ? `${tag}\n×${count}` : tag;
+    lbl.textContent = count > 1 ? `${tag}\n${count}` : tag;
     bubble.appendChild(lbl);
     el.appendChild(bubble);
   });
@@ -442,7 +442,7 @@ function renderTopics(entries: DailyLogEntry[]): void {
   }
 }
 
-// ─── Topic view toggle ────────────────────────────────────────────────────────
+//  Topic view toggle 
 
 function initTopicToggle(): void {
   const btnList   = document.getElementById("btn-list");
@@ -472,7 +472,7 @@ function initTopicToggle(): void {
   });
 }
 
-// ─── Full render ──────────────────────────────────────────────────────────────
+//  Full render 
 
 function render(entries: DailyLogEntry[]): void {
   const hasData   = entries.length > 0;
@@ -491,7 +491,7 @@ function render(entries: DailyLogEntry[]): void {
   renderTopics(entries);
 }
 
-// ─── Load & live update ───────────────────────────────────────────────────────
+//  Load & live update 
 
 async function loadAndRender(): Promise<void> {
   const key = todayKey();
@@ -511,7 +511,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 window.addEventListener("resize", loadAndRender);
 
-// ─── Bootstrap ────────────────────────────────────────────────────────────────
+//  Bootstrap 
 initDateSubtitle();
 initTopicToggle();
 loadAndRender();

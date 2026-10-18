@@ -5,7 +5,7 @@ Downloads an audio/video file from a URL and transcribes it using
 faster-whisper (small model, CPU, int8 quantisation).
 
 The model is loaded once on first call and reused across requests.
-Raw audio is processed locally — it is never sent to any cloud service.
+Raw audio is processed locally  it is never sent to any cloud service.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# ─── Lazy model singleton ─────────────────────────────────────────────────────
+#  Lazy model singleton 
 # Loaded on the first transcription request so server startup stays fast.
 _whisper_model = None
 
@@ -28,18 +28,18 @@ def _get_model():
     if _whisper_model is None:
         try:
             from faster_whisper import WhisperModel  # type: ignore
-            logger.info("[Whisper] Loading small model (CPU, int8) — first request only…")
-            print("\n🤖 [Whisper] Loading small model (CPU, int8) — this takes ~3–5s on first call…", flush=True)
+            logger.info("[Whisper] Loading small model (CPU, int8)  first request only")
+            print("\n [Whisper] Loading small model (CPU, int8)  this takes ~35s on first call", flush=True)
             _whisper_model = WhisperModel(
                 "small",
                 device="cpu",
                 compute_type="int8",
             )
-            print("✅ [Whisper] Model ready!\n", flush=True)
+            print(" [Whisper] Model ready!\n", flush=True)
             logger.info("[Whisper] Model ready.")
         except ImportError:
             logger.warning(
-                "[Whisper] faster-whisper not installed — transcription disabled. "
+                "[Whisper] faster-whisper not installed  transcription disabled. "
                 "Analysis will continue using caption + audio track + comments only."
             )
             _whisper_model = "unavailable"  # sentinel so we don't retry
@@ -47,8 +47,8 @@ def _get_model():
     return _whisper_model
 
 
-# ─── Download ─────────────────────────────────────────────────────────────────
-MAX_AUDIO_BYTES = 30 * 1024 * 1024   # 30 MB guard — a 60-second reel is ~3–8 MB
+#  Download 
+MAX_AUDIO_BYTES = 30 * 1024 * 1024   # 30 MB guard  a 60-second reel is ~38 MB
 DOWNLOAD_TIMEOUT_S = 30.0
 
 
@@ -97,7 +97,7 @@ async def _download_audio(url: str) -> str:
         raise
 
 
-# ─── Transcribe ───────────────────────────────────────────────────────────────
+#  Transcribe 
 MAX_TRANSCRIPT_CHARS = 600
 NO_SPEECH_THRESHOLD  = 0.6
 AVG_LOGPROB_THRESHOLD = -1.0
@@ -105,8 +105,8 @@ AVG_LOGPROB_THRESHOLD = -1.0
 
 async def transcribe_from_url(audio_url: str) -> str:
     """
-    Download *audio_url* and return a spoken transcript (≤ 600 chars).
-    Returns "" on any failure — never raises so the analysis pipeline
+    Download *audio_url* and return a spoken transcript ( 600 chars).
+    Returns "" on any failure  never raises so the analysis pipeline
     can continue without a transcript.
     """
     tmp_path: Optional[str] = None

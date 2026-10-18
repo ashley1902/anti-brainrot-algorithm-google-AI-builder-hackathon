@@ -27,9 +27,9 @@ def get_provider() -> AIProvider:
     Return a singleton AI provider (lazy init).
 
     Priority:
-      1. GEMINI_API_KEY  → GeminiProvider  (Google AI / Cloud Run deployment)
-      2. DEEPSEEK_API_KEY → DeepSeekProvider (local dev fallback)
-      3. neither / 'mock'  → MockProvider
+      1. GEMINI_API_KEY   GeminiProvider  (Google AI / Cloud Run deployment)
+      2. DEEPSEEK_API_KEY  DeepSeekProvider (local dev fallback)
+      3. neither / 'mock'   MockProvider
     """
     global _provider
     if _provider is None:
@@ -44,7 +44,7 @@ def get_provider() -> AIProvider:
             _provider = DeepSeekProvider()
         else:
             logger.warning(
-                "[ABR] No API key set — using MockProvider. "
+                "[ABR] No API key set  using MockProvider. "
                 "Set GEMINI_API_KEY or DEEPSEEK_API_KEY in backend/.env"
             )
             _provider = MockProvider()

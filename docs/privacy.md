@@ -1,4 +1,4 @@
-# Privacy Notice — Anti Brain Rot V0.1
+# Privacy Notice  Anti Brain Rot V0.1
 
 ## What is analyzed
 
@@ -23,12 +23,12 @@ In V0.1, extracted text is sent from the extension's service worker to a **local
 
 | Data | Stored where | How long |
 |---|---|---|
-| Extracted text | **Never stored** — discarded after analysis | Never |
+| Extracted text | **Never stored**  discarded after analysis | Never |
 | AI classification features (numbers, tags) | Extension memory only | Until session ends or extension restarts |
 | Session metrics (duration, item count) | Extension memory only | Until session ends |
 | User settings | `chrome.storage.local` (on-device) | Until you clear or uninstall |
 | DeepSeek API key | Backend `.env` file on your machine | You control |
-| API key in extension | **Never** — by design | Not applicable |
+| API key in extension | **Never**  by design | Not applicable |
 
 ## What is never collected
 
@@ -41,9 +41,9 @@ In V0.1, extracted text is sent from the extension's service worker to a **local
 ## Your controls
 
 - **Pause / Resume** monitoring at any time via the popup
-- **Clear session data** via the popup — clears in-memory session metrics
-- **Disable monitoring** — stops all extraction and analysis
-- **Clear settings** — remove extension storage via Chrome's extension settings
+- **Clear session data** via the popup  clears in-memory session metrics
+- **Disable monitoring**  stops all extraction and analysis
+- **Clear settings**  remove extension storage via Chrome's extension settings
 
 ## Language
 

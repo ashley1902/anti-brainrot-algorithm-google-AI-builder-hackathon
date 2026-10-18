@@ -28,22 +28,22 @@ from .ai_provider import AIProvider, ProviderError, ProviderTimeoutError
 
 logger = logging.getLogger(__name__)
 
-# ─── System prompt ────────────────────────────────────────────────────────────
+#  System prompt 
 SYSTEM_PROMPT = """\
 You classify characteristics of short-form social media content (YouTube Shorts
 or Instagram Reels captions/titles) for a digital-wellbeing prototype. The
-input is typically a short title or caption — this is expected and normal.
+input is typically a short title or caption  this is expected and normal.
 A short caption alone IS sufficient context; do not set insufficientContext=true
 just because the text is brief.
 
 The input may optionally include any of:
-  - "Audio track: ..." — the song/music being used in the reel or short.
+  - "Audio track: ..."  the song/music being used in the reel or short.
     Use this to inform emotional tone (e.g. a sad song raises sadness score).
-  - "Spoken content (transcribed): ..." — a speech-to-text transcript of the
+  - "Spoken content (transcribed): ..."  a speech-to-text transcript of the
     video's audio when no music track was identified (e.g. vlogs, comedy skits,
     talking-head videos). Use this as primary content signal when the caption
     is short or absent.
-  - "Top comments: ..." — a numbered list of viewer comments.
+  - "Top comments: ..."  a numbered list of viewer comments.
     Use these to understand audience reaction (e.g. grief comments raise sadness).
 
 Only set insufficientContext=true if the text is completely meaningless (e.g.
@@ -51,17 +51,17 @@ random characters, a single emoji with no context, or clearly corrupted text).
 
 Analyze only the supplied text. Do not infer the viewer's mood, mental health,
 diagnosis, intent, or biological state. Return ONLY a valid JSON object
-matching the schema below — no markdown, no explanation, no extra keys.
+matching the schema below  no markdown, no explanation, no extra keys.
 
 Score based on what the title/description (and any audio/comment context) signals
-about the content's emotional character. Be appropriately specific — do not
+about the content's emotional character. Be appropriately specific  do not
 default everything to 0.0.
 
 Do not reproduce the supplied content in your response.
 
 Schema (all numbers must be within the stated range):
 {
-  "topicTags": [string, ...],      // 0–5 short topic labels
+  "topicTags": [string, ...],      // 05 short topic labels
   "sentiment": float,              // -1.0 (very negative) to +1.0 (very positive)
   "emotionalIntensity": float,     // 0.0 to 1.0
   "anxietyRelated": float,         // 0.0 to 1.0
@@ -79,14 +79,14 @@ Schema (all numbers must be within the stated range):
   "humor": float,                  // 0.0 to 1.0
   "educational": float,            // 0.0 to 1.0
   "inspirational": float,          // 0.0 to 1.0
-  "envy": float,                   // 0.0 to 1.0 — lifestyle/wealth/beauty flex that induces envy
-  "doom": float,                   // 0.0 to 1.0 — hopelessness, existential despair, "we're doomed"
-  "fearMongering": float,          // 0.0 to 1.0 — alarmist, exaggerated threats, panic-inducing
-  "dramaGossip": float,            // 0.0 to 1.0 — celebrity drama, gossip, scandal, relationship tea
-  "clickbait": float,              // 0.0 to 1.0 — misleading/sensational hook designed to bait clicks
-  "cliffhanger": float,            // 0.0 to 1.0 — deliberately unresolved ending to compel continued scrolling
-  "validationSeeking": float,      // 0.0 to 1.0 — fishing for likes, sympathy, or approval ("am I the only one?")
-  "nourishing": float,             // 0.0 to 1.0 — genuinely wholesome, restorative, or life-affirming
+  "envy": float,                   // 0.0 to 1.0  lifestyle/wealth/beauty flex that induces envy
+  "doom": float,                   // 0.0 to 1.0  hopelessness, existential despair, "we're doomed"
+  "fearMongering": float,          // 0.0 to 1.0  alarmist, exaggerated threats, panic-inducing
+  "dramaGossip": float,            // 0.0 to 1.0  celebrity drama, gossip, scandal, relationship tea
+  "clickbait": float,              // 0.0 to 1.0  misleading/sensational hook designed to bait clicks
+  "cliffhanger": float,            // 0.0 to 1.0  deliberately unresolved ending to compel continued scrolling
+  "validationSeeking": float,      // 0.0 to 1.0  fishing for likes, sympathy, or approval ("am I the only one?")
+  "nourishing": float,             // 0.0 to 1.0  genuinely wholesome, restorative, or life-affirming
   "confidence": float,             // 0.0 to 1.0 (your confidence in this classification)
   "insufficientContext": bool
 }
@@ -133,40 +133,40 @@ class DeepSeekProvider(AIProvider):
             {"role": "user", "content": f"{source_label} to classify:\n\n{text}"},
         ]
 
-        # ── Dev logging ───────────────────────────────────────────────────────
-        print("\n" + "━" * 60)
-        print("📤 CONTENT SENT TO DEEPSEEK:")
+        #  Dev logging 
+        print("\n" + "" * 60)
+        print(" CONTENT SENT TO DEEPSEEK:")
         print(f"   {text!r}")
-        print("━" * 60)
+        print("" * 60)
 
         raw = await self._call_api(messages)
 
-        print("📥 DEEPSEEK RAW RESPONSE:")
+        print(" DEEPSEEK RAW RESPONSE:")
         print(f"   {raw}")
-        print("━" * 60 + "\n")
-        # ─────────────────────────────────────────────────────────────────────
+        print("" * 60 + "\n")
+        # 
 
         # Parse JSON; retry once with repair prompt on failure
         features: Optional[ContentFeatures] = self._parse_response(raw)
         if features is None:
-            logger.warning("[ABR] Malformed JSON on first attempt — retrying with repair prompt")
+            logger.warning("[ABR] Malformed JSON on first attempt  retrying with repair prompt")
             messages.append({"role": "assistant", "content": raw})
             messages.append({"role": "user", "content": REPAIR_PROMPT})
             raw2 = await self._call_api(messages)
 
-            print("📥 DEEPSEEK RETRY RESPONSE:")
+            print(" DEEPSEEK RETRY RESPONSE:")
             print(f"   {raw2}")
-            print("━" * 60 + "\n")
+            print("" * 60 + "\n")
 
             features = self._parse_response(raw2)
 
         if features is None:
             raise ProviderError("Model returned malformed JSON after retry.")
 
-        print("✅ PARSED FEATURES:")
+        print(" PARSED FEATURES:")
         print(f"   sentiment={features.sentiment:.2f}  emotionalIntensity={features.emotionalIntensity:.2f}  rageBait={features.rageBait:.2f}")
         print(f"   topics={features.topicTags}  insufficientContext={features.insufficientContext}")
-        print("━" * 60 + "\n")
+        print("" * 60 + "\n")
 
         return features
 
@@ -200,7 +200,7 @@ class DeepSeekProvider(AIProvider):
         if resp.status_code == 429:
             raise ProviderError("DeepSeek rate limit exceeded (429).", status_code=429)
         if resp.status_code >= 400:
-            # Do NOT include response body in the error — it may contain key info
+            # Do NOT include response body in the error  it may contain key info
             raise ProviderError(
                 f"DeepSeek returned HTTP {resp.status_code}.",
                 status_code=resp.status_code,

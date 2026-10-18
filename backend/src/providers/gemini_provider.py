@@ -3,10 +3,10 @@ gemini_provider.py
 
 Google Gemini (via Google AI Studio API) provider for content classification.
 
-Uses gemini-1.5-flash — fast, cheap, excellent at structured JSON output.
+Uses gemini-1.5-flash  fast, cheap, excellent at structured JSON output.
 Set GEMINI_API_KEY in .env (get one free at https://aistudio.google.com/apikey).
 
-Same system prompt and output schema as DeepSeekProvider — fully interchangeable.
+Same system prompt and output schema as DeepSeekProvider  fully interchangeable.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ MAX_TEXT_CHARS = 2000
 class GeminiProvider(AIProvider):
     """
     Calls the Google Gemini API (gemini-1.5-flash) to classify content features.
-    Structurally identical to DeepSeekProvider — same prompt, same output schema.
+    Structurally identical to DeepSeekProvider  same prompt, same output schema.
     """
 
     def __init__(self) -> None:
@@ -62,17 +62,17 @@ class GeminiProvider(AIProvider):
 
         user_message = f"{source_label} to classify:\n\n{text}"
 
-        # ── Dev logging ───────────────────────────────────────────────────────
-        print("\n" + "━" * 60)
-        print("📤 CONTENT SENT TO GEMINI:")
+        #  Dev logging 
+        print("\n" + "" * 60)
+        print(" CONTENT SENT TO GEMINI:")
         print(f"   {text!r}")
-        print("━" * 60)
+        print("" * 60)
 
         raw = await self._call_api(user_message)
 
-        print("📥 GEMINI RAW RESPONSE:")
+        print(" GEMINI RAW RESPONSE:")
         print(f"   {raw}")
-        print("━" * 60 + "\n")
+        print("" * 60 + "\n")
 
         features: Optional[ContentFeatures] = self._parse_response(raw)
 
@@ -85,10 +85,10 @@ class GeminiProvider(AIProvider):
         if features is None:
             raise ProviderError("Gemini returned malformed JSON after cleanup attempt.")
 
-        print("✅ PARSED FEATURES (Gemini):")
+        print(" PARSED FEATURES (Gemini):")
         print(f"   sentiment={features.sentiment:.2f}  emotionalIntensity={features.emotionalIntensity:.2f}  rageBait={features.rageBait:.2f}")
         print(f"   topics={features.topicTags}  insufficientContext={features.insufficientContext}")
-        print("━" * 60 + "\n")
+        print("" * 60 + "\n")
 
         return features
 

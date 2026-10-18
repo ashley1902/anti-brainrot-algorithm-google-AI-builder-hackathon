@@ -4,16 +4,16 @@
  * Deterministic, rate-limited intervention policy.
  *
  * States:
- *   NORMAL      → session not started
- *   MONITORING  → session active, watching
- *   PROMPTED    → intervention shown
- *   COOLDOWN    → waiting after dismissal
- *   PAUSED      → user paused monitoring
+ *   NORMAL       session not started
+ *   MONITORING   session active, watching
+ *   PROMPTED     intervention shown
+ *   COOLDOWN     waiting after dismissal
+ *   PAUSED       user paused monitoring
  *
  * Intervention gates (all must pass):
- *   1. ≥ MIN_ITEMS_REQUIRED analyzed items
- *   2. Session duration ≥ minimumSessionMs
- *   3. Recent content impact average ≥ threshold
+ *   1.  MIN_ITEMS_REQUIRED analyzed items
+ *   2. Session duration  minimumSessionMs
+ *   3. Recent content impact average  threshold
  *   4. Trajectory is "increasing" OR negativeExposureRatio is high
  *   5. Not in COOLDOWN or PAUSED
  *   6. promptsThisSession < maxPromptsPerSession
@@ -25,7 +25,7 @@ import type { InterventionState, TrajectoryState } from "../types";
 export const MIN_ITEMS_REQUIRED = 5;
 
 /** Per-sensitivity thresholds for recentContentImpact.
- *  Tuned for title-only extraction where scores typically land 0.15–0.45.
+ *  Tuned for title-only extraction where scores typically land 0.150.45.
  *  Adjust during testing based on observed false-positive rates.
  */
 export const SENSITIVITY_THRESHOLDS: Record<string, number> = {
@@ -78,26 +78,26 @@ export function evaluatePolicy(ctx: InterventionContext): PolicyResult {
     nowMs,
   } = ctx;
 
-  // Paused → stay paused
+  // Paused  stay paused
   if (state === "PAUSED") {
     return { shouldPrompt: false, nextState: "PAUSED" };
   }
 
-  // Cooldown not yet expired → stay in COOLDOWN
+  // Cooldown not yet expired  stay in COOLDOWN
   if (state === "COOLDOWN") {
     if (cooldownEndsAt !== undefined && nowMs < cooldownEndsAt) {
       return { shouldPrompt: false, nextState: "COOLDOWN", cooldownEndsAt };
     }
-    // Cooldown expired → back to MONITORING
+    // Cooldown expired  back to MONITORING
     return { shouldPrompt: false, nextState: "MONITORING" };
   }
 
-  // NORMAL → MONITORING when session begins
+  // NORMAL  MONITORING when session begins
   if (state === "NORMAL") {
     return { shouldPrompt: false, nextState: "MONITORING" };
   }
 
-  // PROMPTED → shouldn't re-evaluate until user responds; stay as is
+  // PROMPTED  shouldn't re-evaluate until user responds; stay as is
   if (state === "PROMPTED") {
     return { shouldPrompt: false, nextState: "PROMPTED" };
   }

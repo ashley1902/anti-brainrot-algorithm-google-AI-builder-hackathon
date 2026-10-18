@@ -8,7 +8,7 @@
  *   2. Observe URL/DOM changes; extract and send content to service worker.
  *   3. Receive SHOW_INTERVENTION from service worker; render overlay.
  *   4. For Instagram: wait for the caption DOM to actually update before
- *      extracting — prevents sending the previous reel's caption for the
+ *      extracting  prevents sending the previous reel's caption for the
  *      current reel.
  *
  * Raw extracted text is discarded after being sent. Never persisted locally.
@@ -20,17 +20,17 @@ import { showInterventionOverlay } from "./intervention-ui";
 import { detectCurrentPage } from "./site-detection";
 import type { ExtractionResult, ExtensionMessage } from "../types";
 
-// ─── Rate limiting ────────────────────────────────────────────────────────────
+//  Rate limiting 
 const MIN_REQUEST_INTERVAL_MS = 2000;
 let lastRequestAt = 0;
 
-// ─── Observer / interval handles ─────────────────────────────────────────────
+//  Observer / interval handles 
 let mutationObserver: MutationObserver | null = null;
 let navigationCheckInterval: ReturnType<typeof setInterval> | null = null;
 let lastPath = window.location.pathname;
 let monitoring = true;
 
-// ─── YouTube debounce ─────────────────────────────────────────────────────────
+//  YouTube debounce 
 const DEBOUNCE_MS = 600;
 const STABILIZE_YT_MS = 600;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -40,7 +40,7 @@ function scheduleExtraction(): void {
   debounceTimer = setTimeout(() => attemptExtraction(), DEBOUNCE_MS);
 }
 
-// ─── Instagram: DOM hash watching ─────────────────────────────────────────────
+//  Instagram: DOM hash watching 
 /**
  * Fingerprint of all meaningful span[dir="auto"] text visible on the page.
  * Changes when Instagram swaps in a new reel's caption DOM nodes.
@@ -64,7 +64,7 @@ function sleep(ms: number): Promise<void> {
 /**
  * Poll every 150 ms until captionStateHash() differs from previousHash,
  * or until maxWaitMs is exceeded.  When Instagram swipes to a new reel it
- * replaces the caption spans within ~300–2000 ms.
+ * replaces the caption spans within ~3002000 ms.
  */
 async function waitForCaptionUpdate(
   previousHash: string,
@@ -76,11 +76,11 @@ async function waitForCaptionUpdate(
     if (captionStateHash() !== previousHash) return;
   }
   console.log(
-    "[ABR] Caption DOM unchanged after timeout — proceeding with current state"
+    "[ABR] Caption DOM unchanged after timeout  proceeding with current state"
   );
 }
 
-// ─── Main extraction ──────────────────────────────────────────────────────────
+//  Main extraction 
 async function attemptExtraction(): Promise<void> {
   if (!monitoring) return;
 
@@ -130,32 +130,32 @@ async function attemptExtraction(): Promise<void> {
     },
   };
 
-  console.log("[ABR] → Sending CONTENT_DETECTED to SW…");
+  console.log("[ABR]  Sending CONTENT_DETECTED to SW");
   try {
     const resp = await chrome.runtime.sendMessage(msg);
-    console.log("[ABR] ✅ SW acknowledged:", resp);
+    console.log("[ABR]  SW acknowledged:", resp);
   } catch (err) {
-    console.warn("[ABR] ❌ Could not send CONTENT_DETECTED:", err);
+    console.warn("[ABR]  Could not send CONTENT_DETECTED:", err);
   }
 }
 
-// ─── Instagram navigation handler ─────────────────────────────────────────────
+//  Instagram navigation handler 
 /**
  * Called after every Instagram URL change.
  *
  * 1. Capture the caption hash BEFORE the new reel loads.
  * 2. Wait until Instagram updates the DOM (hash changes).
- * 3. THEN extract — guaranteeing we read the new reel's caption, not the old one.
+ * 3. THEN extract  guaranteeing we read the new reel's caption, not the old one.
  */
 async function handleInstagramNavigation(): Promise<void> {
   const hashBefore = igLastCaptionHash || captionStateHash();
-  console.log("[ABR] Waiting for Instagram caption DOM to update…");
+  console.log("[ABR] Waiting for Instagram caption DOM to update");
   await waitForCaptionUpdate(hashBefore);
   console.log("[ABR] DOM updated, extracting.");
   await attemptExtraction();
 }
 
-// ─── Mutation observer (YouTube only) ────────────────────────────────────────
+//  Mutation observer (YouTube only) 
 // Instagram navigation is handled event-driven via handleInstagramNavigation.
 // We still observe mutations for YouTube so new Shorts trigger extraction.
 function startObserver(): void {
@@ -181,13 +181,13 @@ function stopObserver(): void {
   mutationObserver = null;
 }
 
-// ─── URL navigation detection ─────────────────────────────────────────────────
+//  URL navigation detection 
 function startNavigationCheck(): void {
   if (navigationCheckInterval) return;
   navigationCheckInterval = setInterval(() => {
     const currentPath = window.location.pathname;
     if (currentPath !== lastPath) {
-      console.log(`[ABR] URL changed: ${lastPath} → ${currentPath}`);
+      console.log(`[ABR] URL changed: ${lastPath}  ${currentPath}`);
       lastPath = currentPath;
       if (!monitoring) return;
 
@@ -207,7 +207,7 @@ function stopNavigationCheck(): void {
   }
 }
 
-// ─── Incoming messages ────────────────────────────────────────────────────────
+//  Incoming messages 
 chrome.runtime.onMessage.addListener(
   (message: ExtensionMessage, _sender, sendResponse) => {
     switch (message.type) {
@@ -243,7 +243,7 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-// ─── Tab visibility ───────────────────────────────────────────────────────────
+//  Tab visibility 
 // When the user switches back to this tab, trigger a fresh extraction so the
 // currently-visible content gets analyzed even if no URL/DOM change fires.
 document.addEventListener("visibilitychange", () => {
@@ -257,7 +257,7 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-// ─── Bootstrap ────────────────────────────────────────────────────────────────
+//  Bootstrap 
 (function init() {
   const onSupportedPage = isYouTubeShorts() || isInstagramReels();
   if (!onSupportedPage) {

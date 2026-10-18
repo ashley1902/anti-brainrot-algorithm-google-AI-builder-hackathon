@@ -1,4 +1,4 @@
-# Anti Brain Rot — Cloud Run Deployment
+# Anti Brain Rot  Cloud Run Deployment
 
 This branch (`deploy`) is the production-ready backend for Cloud Run.
 
@@ -7,7 +7,7 @@ This branch (`deploy`) is the production-ready backend for Cloud Run.
 | Component | Where it runs | How to share |
 |---|---|---|
 | FastAPI backend | **Google Cloud Run** | Public HTTPS URL |
-| Chrome Extension | **Judge's browser** | Share `dist/` folder as ZIP → Load Unpacked |
+| Chrome Extension | **Judge's browser** | Share `dist/` folder as ZIP  Load Unpacked |
 
 ---
 
@@ -52,16 +52,16 @@ https://anti-brain-rot-backend-xxxxxx-uc.a.run.app
 Test it:
 ```bash
 curl https://anti-brain-rot-backend-xxxxxx-uc.a.run.app/health
-# → {"status":"ok"}
+#  {"status":"ok"}
 ```
 
 ---
 
 ## Connect the extension
 
-In the extension popup → Settings → set **Backend URL** to your Cloud Run URL.
+In the extension popup  Settings  set **Backend URL** to your Cloud Run URL.
 
-Or run this once in the Service Worker console (chrome://extensions → SW → Inspect):
+Or run this once in the Service Worker console (chrome://extensions  SW  Inspect):
 ```js
 chrome.storage.local.set({
   abr_settings: {
@@ -78,7 +78,7 @@ chrome.storage.local.set({
 ## Share the extension with judges
 
 ```bash
-# From the extension/ folder — build first
+# From the extension/ folder  build first
 cd extension && npm run build
 
 # Zip the dist/ folder
@@ -88,7 +88,7 @@ cd dist && zip -r ../anti-brain-rot-extension.zip .
 Share `anti-brain-rot-extension.zip`. Judges:
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top right)
-3. Click **Load unpacked** → select the unzipped `dist/` folder
+3. Click **Load unpacked**  select the unzipped `dist/` folder
 4. Open Instagram Reels or YouTube Shorts and start scrolling
 
 ---
@@ -100,4 +100,4 @@ cd backend
 gcloud run deploy anti-brain-rot-backend --source . --region us-central1
 ```
 
-Cloud Run keeps the same URL — no extension update needed.
+Cloud Run keeps the same URL  no extension update needed.

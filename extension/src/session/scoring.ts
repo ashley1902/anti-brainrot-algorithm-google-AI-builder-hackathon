@@ -36,7 +36,7 @@ export function clamp01(value: unknown): number {
  * Returns a value in [0, 1].
  *
  * negativeSentiment = clamp((1 - sentiment) / 2, 0, 1)
- *   → converts the [-1, +1] sentiment range so that -1 → 1.0 and +1 → 0.0
+ *    converts the [-1, +1] sentiment range so that -1  1.0 and +1  0.0
  */
 export function computeContentImpact(features: ContentFeatures): number {
   const sentiment = clamp(

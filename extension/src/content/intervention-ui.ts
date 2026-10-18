@@ -3,7 +3,7 @@
  *
  * Renders a gentle, dismissible intervention overlay.
  *
- * UX principles (from spec §6.3):
+ * UX principles (from spec 6.3):
  *   - Nonjudgmental language.
  *   - Dismissible at any time.
  *   - Rate-limited by session policy.
@@ -32,13 +32,13 @@ export function showInterventionOverlay(onResponse: ResponseCallback): void {
   overlay.innerHTML = `
     <div class="abr-card" tabindex="-1">
       <div class="abr-header">
-        <span class="abr-icon" aria-hidden="true">🧘</span>
+        <span class="abr-icon" aria-hidden="true"></span>
         <h2 class="abr-title" id="abr-intervention-title">Your feed has become more emotionally intense</h2>
       </div>
       <p class="abr-desc" id="abr-intervention-desc">
         Your recent content and scrolling pattern may be a good moment for a short pause.
         <br><br>
-        <em>This is an estimate based on content characteristics — not a diagnosis or assessment of your mood.</em>
+        <em>This is an estimate based on content characteristics  not a diagnosis or assessment of your mood.</em>
       </p>
       <div class="abr-actions">
         <button class="abr-btn abr-btn-primary" id="abr-take-break" aria-label="Take a 2-minute break">
@@ -94,7 +94,7 @@ function showBreakTimer(onResponse: ResponseCallback): void {
 
   overlay.innerHTML = `
     <div class="abr-card abr-timer-card" tabindex="-1">
-      <span class="abr-icon" aria-hidden="true">⏱️</span>
+      <span class="abr-icon" aria-hidden="true"></span>
       <h2 class="abr-title">Taking a moment</h2>
       <p class="abr-timer-display" id="abr-timer-display" aria-live="polite">${formatSeconds(secondsLeft)}</p>
       <p class="abr-desc">Take a breath. Step away for a moment. You can always come back.</p>

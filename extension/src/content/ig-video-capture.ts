@@ -13,7 +13,7 @@
   if ((window as unknown as Record<string, unknown>).__ABR_VIDEO_CAPTURE) return;
   (window as unknown as Record<string, unknown>).__ABR_VIDEO_CAPTURE = true;
 
-  console.log("[ABR-MAIN] 🔌 ig-video-capture loaded in MAIN world");
+  console.log("[ABR-MAIN]  ig-video-capture loaded in MAIN world");
 
   const origFetch = window.fetch.bind(window);
 
@@ -42,7 +42,7 @@
               const url = m[1]
                 .replace(/\\u0026/g, "&")
                 .replace(/\\\//g, "/");
-              console.log("[ABR-MAIN] 📹 Found video_url:", url.slice(0, 80));
+              console.log("[ABR-MAIN]  Found video_url:", url.slice(0, 80));
               window.postMessage({ type: "ABR_VIDEO_URL", url }, "*");
             }
           }

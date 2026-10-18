@@ -4,9 +4,9 @@
  * Site adapter for YouTube Shorts.
  *
  * Extraction strategy (in priority order):
- *   1. Video ID from URL  → used as the deduplication key (most reliable)
- *   2. document.title     → primary text source (consistently contains video title)
- *   3. DOM selectors      → supplement with description text if available
+ *   1. Video ID from URL   used as the deduplication key (most reliable)
+ *   2. document.title      primary text source (consistently contains video title)
+ *   3. DOM selectors       supplement with description text if available
  *
  * YouTube's DOM changes frequently. This adapter uses defensive selectors
  * and fails gracefully when elements are unavailable.
@@ -14,7 +14,7 @@
 
 import type { ExtractionResult } from "../../types";
 
-// ─── URL helpers ──────────────────────────────────────────────────────────────
+//  URL helpers 
 
 /** Whether the current URL is a YouTube Shorts URL. */
 export function isYouTubeShorts(): boolean {
@@ -35,7 +35,7 @@ export function isYouTube(): boolean {
   return window.location.hostname === "www.youtube.com";
 }
 
-// ─── Fingerprint ──────────────────────────────────────────────────────────────
+//  Fingerprint 
 
 /**
  * Primary dedup key = video ID from URL.
@@ -51,7 +51,7 @@ export function computeFingerprint(videoId: string, text: string): string {
   return hash.toString(16);
 }
 
-// ─── Text cleaning ────────────────────────────────────────────────────────────
+//  Text cleaning 
 
 const MAX_TEXT_CHARS = 800;
 
@@ -105,7 +105,7 @@ function stripEngagementMetadata(text: string): string {
     .trim();
 }
 
-// ─── Music extraction ─────────────────────────────────────────────────────────
+//  Music extraction 
 
 /**
  * The reel renderer for the Short currently on screen. YouTube now reuses a
@@ -124,7 +124,7 @@ function getActiveReel(): ParentNode {
 
 const AUDIO_CHIPS = "yt-reel-carousel-view-model button-view-model";
 
-// ─── Audio stream URL (for Whisper transcription) ─────────────────────────────
+//  Audio stream URL (for Whisper transcription) 
 
 /**
  * Parse ytInitialPlayerResponse from the page's <script> tags.
@@ -192,7 +192,7 @@ function extractYtAudioStreamUrl(): string {
       return preferred?.url ?? "";
     }
   } catch (e) {
-    console.log("[ABR-YT] 🎙️  Audio URL extraction error:", e);
+    console.log("[ABR-YT]   Audio URL extraction error:", e);
   }
   return "";
 }
@@ -221,7 +221,7 @@ function readYtInitialData(): unknown {
       // The script is typically: var ytInitialData = {...};
       // Find last semicolon to trim the trailing ";window['ytInitialData']..." noise
       const jsonStr = text.slice(jsonStart);
-      // JSON.parse will stop at the first complete object — use a bracket counter
+      // JSON.parse will stop at the first complete object  use a bracket counter
       let depth = 0;
       let inStr = false;
       let escape = false;
@@ -243,14 +243,14 @@ function readYtInitialData(): unknown {
       return JSON.parse(jsonStr.slice(0, end));
     }
   } catch {
-    // Fail silently — script tags may vary
+    // Fail silently  script tags may vary
   }
   return null;
 }
 
 /**
  * The audio card is a <button> chip in the active Short's carousel whose text
- * is "Song · Artist". Other carousel chips (related videos) are <a href="/watch?v=">
+ * is "Song  Artist". Other carousel chips (related videos) are <a href="/watch?v=">
  * links without the middle dot.
  *
  * ytInitialData is deliberately not used: it reflects only the first Short
@@ -267,7 +267,7 @@ function extractMusicFromYT(videoId: string): string {
     const text = chip.innerText.trim();
     if (!text.includes("\u00B7")) continue;
 
-    console.log(`[ABR-YT] 🎵 Audio chip: "${text}"`);
+    console.log(`[ABR-YT]  Audio chip: "${text}"`);
     if (text === lastMusicText && videoId !== lastMusicVideoId) return "";
     lastMusicText = text;
     lastMusicVideoId = videoId;
@@ -279,21 +279,21 @@ function extractMusicFromYT(videoId: string): string {
   }
 
   console.log(
-    `[ABR-YT] 🎵 No audio chip. Carousel chips: ${JSON.stringify(chips.map((c) => c.innerText.trim()))}`
+    `[ABR-YT]  No audio chip. Carousel chips: ${JSON.stringify(chips.map((c) => c.innerText.trim()))}`
   );
   return "";
 }
 
-// ─── Comment extraction ───────────────────────────────────────────────────────
+//  Comment extraction 
 
 /**
  * Extract top comments from the YouTube comments panel.
  * Confirmed DOM structure via live inspection on Shorts:
  *   - Panel: ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"]
  *   - Each comment: ytd-comment-thread-renderer
- *   - innerText per thread: "@username\nN time ago\ncomment text\n[like_count]\nReply\n[· N replies]"
+ *   - innerText per thread: "@username\nN time ago\ncomment text\n[like_count]\nReply\n[ N replies]"
  *   - Like count is a bare number (e.g. "1", "2.3K") on its own line just before "Reply"
- * The panel only exists when the user has opened it — returns [] gracefully if not.
+ * The panel only exists when the user has opened it  returns [] gracefully if not.
  */
 function extractCommentsFromYtPanel(): string[] {
   const panel = document.querySelector<HTMLElement>(
@@ -308,7 +308,7 @@ function extractCommentsFromYtPanel(): string[] {
 
   // Lines to skip when parsing a thread's innerText
   const JUNK_LINES = new Set([
-    "reply", "show less", "read more", "add a comment…", "comments",
+    "reply", "show less", "read more", "add a comment", "comments",
     "top is selected, so you'll see featured comments",
   ]);
   const TIMESTAMP_RE = /^\d+\s+(second|minute|hour|day|week|month|year)s?\s+ago$/i;
@@ -332,11 +332,11 @@ function extractCommentsFromYtPanel(): string[] {
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
 
-    // Find @username line — marks start of comment block
+    // Find @username line  marks start of comment block
     const usernameIdx = lines.findIndex((l) => l.startsWith("@"));
     if (usernameIdx === -1) continue;
 
-    // Find "Reply" — marks end of comment block
+    // Find "Reply"  marks end of comment block
     const replyIdx = lines.indexOf("Reply", usernameIdx);
     if (replyIdx === -1) continue;
 
@@ -360,16 +360,16 @@ function extractCommentsFromYtPanel(): string[] {
     }
   }
 
-  console.log(`[ABR-YT] 💬 Found ${collected.length} comments from panel`);
+  console.log(`[ABR-YT]  Found ${collected.length} comments from panel`);
 
-  // Sort by likes desc — comments with 0 likes keep their original order
+  // Sort by likes desc  comments with 0 likes keep their original order
   return collected
     .sort((a, b) => b.likes - a.likes)
     .slice(0, 5)
     .map((c) => c.text);
 }
 
-// ─── Extraction ───────────────────────────────────────────────────────────────
+//  Extraction 
 
 let lastDescriptionText = "";
 let lastDescriptionVideoId = "";
@@ -399,7 +399,7 @@ export function extractYouTubeShortsContent(): ExtractionResult {
   const videoId = getCurrentShortId();
   const parts: string[] = [];
 
-  // ── 1. document.title (most reliable) ──────────────────────────────────────
+  //  1. document.title (most reliable) 
   if (document.title) {
     const title = cleanTitle(document.title);
     if (isUsableText(title)) {
@@ -407,7 +407,7 @@ export function extractYouTubeShortsContent(): ExtractionResult {
     }
   }
 
-  // ── 2. DOM title selectors (fallback/supplement if doc.title failed) ────────
+  //  2. DOM title selectors (fallback/supplement if doc.title failed) 
   if (parts.length === 0) {
     const titleSelectors = [
       "yt-shorts-video-title-view-model",
@@ -426,11 +426,11 @@ export function extractYouTubeShortsContent(): ExtractionResult {
     }
   }
 
-  // ── 3. Description / caption (optional supplement) ─────────────────────────
-  // NOTE: yt-attributed-string is intentionally excluded — it captures the full
+  //  3. Description / caption (optional supplement) 
+  // NOTE: yt-attributed-string is intentionally excluded  it captures the full
   // container including author name, likes, views, and date, producing junk like
   // "6kLikes339kViews9 Oct2026". Only use specific, scoped selectors.
-  // ytd-structured-description-content-renderer is also excluded — it is a single
+  // ytd-structured-description-content-renderer is also excluded  it is a single
   // shared panel that keeps the first-loaded Short's description indefinitely.
   const descSelectors = [
     "#description-inline-expander",
@@ -454,7 +454,7 @@ export function extractYouTubeShortsContent(): ExtractionResult {
     break;
   }
 
-  const combined = parts.join(" — ").trim();
+  const combined = parts.join("  ").trim();
 
   if (!combined || !isUsableText(combined)) {
     return {
@@ -474,12 +474,12 @@ export function extractYouTubeShortsContent(): ExtractionResult {
   const rawComments = extractCommentsFromYtPanel();
 
   // Only extract audio stream URL for Whisper when there is no identifiable
-  // music track (i.e. original audio — vlogs, comedy, talking-head content).
+  // music track (i.e. original audio  vlogs, comedy, talking-head content).
   const audioUrl = !musicInfo ? extractYtAudioStreamUrl() || undefined : undefined;
 
-  if (musicInfo) console.log(`[ABR-YT] 🎵 Music: ${musicInfo}`);
-  if (audioUrl)  console.log("[ABR-YT] 🎙️  Audio stream URL found (will transcribe)");
-  if (rawComments.length) console.log(`[ABR-YT] 💬 Comments (${rawComments.length}): ${rawComments[0]?.slice(0, 60)}`);
+  if (musicInfo) console.log(`[ABR-YT]  Music: ${musicInfo}`);
+  if (audioUrl)  console.log("[ABR-YT]   Audio stream URL found (will transcribe)");
+  if (rawComments.length) console.log(`[ABR-YT]  Comments (${rawComments.length}): ${rawComments[0]?.slice(0, 60)}`);
 
   return {
     supported: true,

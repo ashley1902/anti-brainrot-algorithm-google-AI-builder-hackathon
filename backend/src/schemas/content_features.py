@@ -64,7 +64,7 @@ class ContentFeatures(BaseModel):
     )
     @classmethod
     def clamp_01(cls, v: object) -> float:
-        """Clamp 0–1 fields and coerce non-numbers to 0."""
+        """Clamp 01 fields and coerce non-numbers to 0."""
         try:
             return max(0.0, min(1.0, float(v)))  # type: ignore[arg-type]
         except (TypeError, ValueError):

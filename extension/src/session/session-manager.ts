@@ -158,7 +158,7 @@ export class SessionManager {
     // Repeated topic ratio: fraction of items whose first topic was already seen
     const repeatedTopicRatio = this.computeRepeatedTopicRatio();
 
-    // Doomscroll heuristic: 0–1 composite rule-based score
+    // Doomscroll heuristic: 01 composite rule-based score
     const doomscrollHeuristic = this.computeDoomscrollHeuristic(
       sessionDurationMs,
       recentContentImpact,

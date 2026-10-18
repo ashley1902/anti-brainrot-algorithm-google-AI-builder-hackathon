@@ -1,40 +1,40 @@
-# Architecture — Anti Brain Rot V0.1
+# Architecture  Anti Brain Rot V0.1
 
 ## Overview
 
 ```
 Browser (YouTube Shorts tab)
-│
-├── Content Script (content/content.ts)
-│   ├── YouTube Shorts adapter — extracts title + description
-│   ├── MutationObserver + URL change detection
-│   ├── Debounce (800ms) + deduplication (fingerprint hash)
-│   └── Intervention overlay (intervention-ui.ts)
-│
-├── Service Worker (background/service-worker.ts)
-│   ├── Message router
-│   ├── Session engine (SessionManager)
-│   ├── Intervention policy evaluator
-│   └── Calls localhost backend
-│
-├── Popup (popup/popup.ts + popup.html)
-│   ├── Session snapshot display
-│   ├── Pause / Resume / Clear controls
-│   └── Sensitivity setting
-│
-└── chrome.storage.local → Settings only (no raw content)
+
+ Content Script (content/content.ts)
+    YouTube Shorts adapter  extracts title + description
+    MutationObserver + URL change detection
+    Debounce (800ms) + deduplication (fingerprint hash)
+    Intervention overlay (intervention-ui.ts)
+
+ Service Worker (background/service-worker.ts)
+    Message router
+    Session engine (SessionManager)
+    Intervention policy evaluator
+    Calls localhost backend
+
+ Popup (popup/popup.ts + popup.html)
+    Session snapshot display
+    Pause / Resume / Clear controls
+    Sensitivity setting
+
+ chrome.storage.local  Settings only (no raw content)
 
 Localhost Backend (Python FastAPI, port 8787)
-│
-├── POST /api/analyze
-│   ├── Pydantic validation + body-size limit
-│   ├── DeepSeekProvider (or MockProvider)
-│   └── Returns ContentFeatures (numbers + tags only)
-│
-└── GET /health → { status: "ok" }
+
+ POST /api/analyze
+    Pydantic validation + body-size limit
+    DeepSeekProvider (or MockProvider)
+    Returns ContentFeatures (numbers + tags only)
+
+ GET /health  { status: "ok" }
 
 DeepSeek API (cloud)
-└── chat/completions → structured JSON classification
+ chat/completions  structured JSON classification
 ```
 
 ## Key design decisions

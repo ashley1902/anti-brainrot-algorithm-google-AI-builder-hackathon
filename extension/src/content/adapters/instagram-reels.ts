@@ -6,7 +6,7 @@
  * DOM STRUCTURE (confirmed via live inspection):
  *   Caption text lives inside a SPAN[dir="auto"] element.
  *   span[dir="auto"] also contains: usernames, music attributions,
- *   location tags, like counts, UI labels — so we need good filters.
+ *   location tags, like counts, UI labels  so we need good filters.
  *
  * CORE STRATEGY:
  *   1. Collect all span[dir="auto"] with real text.
@@ -19,8 +19,8 @@
 
 import type { ExtractionResult } from "../../types";
 
-// ─── Main-world video URL capture ────────────────────────────────────────────
-// Instagram uses MSE — <video>.src is a blob: URL, unusable by the backend.
+//  Main-world video URL capture 
+// Instagram uses MSE  <video>.src is a blob: URL, unusable by the backend.
 // The real CDN URL lives in Instagram's API responses (GraphQL / REST).
 // We inject a <script> into the main world that patches window.fetch and
 // posts back any "video_url" it finds. The content script (isolated world)
@@ -35,11 +35,11 @@ let capturedVideoUrl = "";
 window.addEventListener("message", (e) => {
   if (e.source === window && e.data?.type === "ABR_VIDEO_URL" && e.data.url) {
     capturedVideoUrl = e.data.url as string;
-    console.log(`[ABR-IG] 📹 Intercepted video_url: ${capturedVideoUrl.slice(0, 80)}…`);
+    console.log(`[ABR-IG]  Intercepted video_url: ${capturedVideoUrl.slice(0, 80)}`);
   }
 });
 
-// ─── URL helpers ──────────────────────────────────────────────────────────────
+//  URL helpers 
 
 export function isInstagramReels(): boolean {
   const host = window.location.hostname;
@@ -55,13 +55,13 @@ export function isInstagram(): boolean {
   return host === "www.instagram.com" || host === "instagram.com";
 }
 
-/** Extract reel ID from URL: /reel/ABC/ or /reels/ABC/ → "ABC" */
+/** Extract reel ID from URL: /reel/ABC/ or /reels/ABC/  "ABC" */
 export function getCurrentReelId(): string {
   const match = window.location.pathname.match(/\/reels?\/([^/?#]+)/);
   return match ? match[1] : "";
 }
 
-// ─── Fingerprint ──────────────────────────────────────────────────────────────
+//  Fingerprint 
 
 export function computeFingerprint(reelId: string, text: string): string {
   if (reelId) return `ig-reel-${reelId}`;
@@ -73,11 +73,11 @@ export function computeFingerprint(reelId: string, text: string): string {
   return `ig-hash-${hash.toString(16)}`;
 }
 
-// ─── Text filters ─────────────────────────────────────────────────────────────
+//  Text filters 
 
 const MAX_TEXT_CHARS = 800;
 
-/** Known UI label words — sidebar nav, action buttons, etc. */
+/** Known UI label words  sidebar nav, action buttons, etc. */
 const UI_LABELS = new Set([
   "instagram", "reels", "explore", "home", "search",
   "notifications", "messages", "create", "profile",
@@ -90,14 +90,14 @@ function isUILabel(text: string): boolean {
 }
 
 /**
- * Music attribution: "Artist · Song Title"
- * Instagram renders these with U+00B7 (·) middle dot.
+ * Music attribution: "Artist  Song Title"
+ * Instagram renders these with U+00B7 () middle dot.
  */
 function isMusicAttribution(text: string): boolean {
-  // U+00B7 middle dot — used by Instagram for "Artist · Song"
+  // U+00B7 middle dot  used by Instagram for "Artist  Song"
   if (text.includes("\u00B7")) return true;
-  // Fallback: looks like "JAŸ-Z · Empire State Of Mind (feat. Alicia Keys)"
-  if (/^[^#\n]{1,60}\s[·•]\s/.test(text) && !text.includes("#")) return true;
+  // Fallback: looks like "JA-Z  Empire State Of Mind (feat. Alicia Keys)"
+  if (/^[^#\n]{1,60}\s[]\s/.test(text) && !text.includes("#")) return true;
   return false;
 }
 
@@ -128,13 +128,13 @@ function isCountOrNumber(text: string): boolean {
   return /^[\d,]+$/.test(text.trim());
 }
 
-/** Short bullet-prefixed label: "• AI content", "• Sponsored" */
+/** Short bullet-prefixed label: " AI content", " Sponsored" */
 function isBulletLabel(text: string): boolean {
-  return /^[•·]/.test(text.trim()) && text.length < 50 && !text.includes("#");
+  return /^[]/.test(text.trim()) && text.length < 50 && !text.includes("#");
 }
 
 /**
- * Captions that are ONLY hashtags and/or @mentions — no readable content.
+ * Captions that are ONLY hashtags and/or @mentions  no readable content.
  * e.g. "#fyp #reels #viral #explore #trending"
  *      "@artist1 @artist2" (no message)
  */
@@ -149,7 +149,7 @@ function isHashtagsOrMentionsOnly(text: string): boolean {
 
 /** Copyright / legal footer text. */
 function isCopyrightText(text: string): boolean {
-  return /^©\s*\d{4}|^copyright\s/i.test(text.trim());
+  return /^\s*\d{4}|^copyright\s/i.test(text.trim());
 }
 
 function isJunk(text: string): boolean {
@@ -165,10 +165,10 @@ function isJunk(text: string): boolean {
   return false;
 }
 
-// ─── Music extraction ─────────────────────────────────────────────────────────
+//  Music extraction 
 
 /**
- * Parse a music attribution string like "JAŸ-Z · Empire State Of Mind"
+ * Parse a music attribution string like "JA-Z  Empire State Of Mind"
  * into a "Artist - Song" format.  Returns "" for original audio.
  */
 function formatMusicInfo(raw: string): string {
@@ -187,7 +187,7 @@ function formatMusicInfo(raw: string): string {
 
 /**
  * Look for music attribution spans in the viewport (i.e., for the current reel).
- * Instagram renders "Artist · Song" inside span[dir="auto"] elements.
+ * Instagram renders "Artist  Song" inside span[dir="auto"] elements.
  * We capture instead of filtering so that DeepSeek gets audio context.
  *
  * IMPORTANT: We only look in-viewport and do NOT fall back to off-screen spans.
@@ -199,7 +199,7 @@ function extractMusicFromDOM(): string {
     document.querySelectorAll<HTMLElement>("span[dir='auto']")
   );
 
-  // Only consider spans visible in the viewport — those belong to the active reel.
+  // Only consider spans visible in the viewport  those belong to the active reel.
   // If none are visible, return "" rather than falling back to stale DOM spans.
   const inViewport = allSpans.filter(
     (el) => isMusicAttribution(el.textContent?.trim() ?? "") && isInViewport(el)
@@ -211,14 +211,14 @@ function extractMusicFromDOM(): string {
   return text ? formatMusicInfo(text) : "";
 }
 
-// ─── Comment extraction ───────────────────────────────────────────────────────
+//  Comment extraction 
 
-// ─── Comment extraction ───────────────────────────────────────────────────────
+//  Comment extraction 
 
 /**
  * Patterns that identify non-comment spans in the comments panel.
  * Confirmed via live DOM inspection: all elements are flat SPAN[dir="auto"]
- * siblings — no ul/li structure. Usernames, like counts, timestamps, and UI
+ * siblings  no ul/li structure. Usernames, like counts, timestamps, and UI
  * labels appear interleaved with actual comment text.
  */
 const COMMENT_SKIP = [
@@ -228,7 +228,7 @@ const COMMENT_SKIP = [
   /^view all \d+ repl/i,
   /^add a comment/i,
   /^\d[\d,]*\s+likes?$/i,   // "182 likes", "1 like"
-  /^\d+\s*[wdhms]$/,         // "8 w", "2 d", "3 h" — timestamps
+  /^\d+\s*[wdhms]$/,         // "8 w", "2 d", "3 h"  timestamps
 ];
 
 function isCommentJunk(text: string): boolean {
@@ -248,7 +248,7 @@ function parseLikes(text: string): number {
  * Extract top comments from the Instagram comments panel ([role="dialog"]).
  * The panel only exists in the DOM when the user has opened it.
  * Comments and their like counts are flat SPAN[dir="auto"] siblings:
- *   username → comment text → "N likes" → "Reply" → next username → …
+ *   username  comment text  "N likes"  "Reply"  next username  
  * We collect (text, likes) pairs, sort by likes desc, return top 5 texts.
  */
 function extractCommentsFromPanel(captionText: string): string[] {
@@ -268,7 +268,7 @@ function extractCommentsFromPanel(captionText: string): string[] {
     // Skip caption text that Instagram also shows at the top of the panel
     if (captionPrefix && text.toLowerCase().startsWith(captionPrefix.slice(0, 20))) continue;
 
-    // Like count is usually in one of the next 1–3 spans
+    // Like count is usually in one of the next 13 spans
     let likes = 0;
     for (let j = i + 1; j < Math.min(i + 4, spans.length); j++) {
       const l = parseLikes(spans[j].textContent?.trim() ?? "");
@@ -285,7 +285,7 @@ function extractCommentsFromPanel(captionText: string): string[] {
     .map((c) => c.text);
 }
 
-// ─── Caption quality score ────────────────────────────────────────────────────
+//  Caption quality score 
 
 function captionScore(text: string): number {
   let score = text.length;
@@ -300,7 +300,7 @@ function captionScore(text: string): number {
   return score;
 }
 
-// ─── Viewport visibility ──────────────────────────────────────────────────────
+//  Viewport visibility 
 
 function isInViewport(el: Element): boolean {
   const rect = el.getBoundingClientRect();
@@ -312,10 +312,10 @@ function isInViewport(el: Element): boolean {
   );
 }
 
-// ─── DOM extraction ───────────────────────────────────────────────────────────
+//  DOM extraction 
 
 function extractFromDOM(): string {
-  // All span[dir="auto"] — confirmed via live DOM inspection to contain
+  // All span[dir="auto"]  confirmed via live DOM inspection to contain
   // captions, usernames, music attributions, locations, counts, UI labels.
   const allSpans = Array.from(
     document.querySelectorAll<HTMLElement>("span[dir='auto']")
@@ -340,7 +340,7 @@ function extractFromDOM(): string {
   return scored[0]?.text.slice(0, MAX_TEXT_CHARS) ?? "";
 }
 
-// ─── document.title extraction ────────────────────────────────────────────────
+//  document.title extraction 
 
 const GENERIC_IG_TITLES = new Set([
   "instagram", "reels", "explore", "home", "messages", "notifications",
@@ -361,7 +361,7 @@ function extractFromTitle(): string {
 
   let title = raw
     .replace(/^\(\d+\)\s*/, "")                 // strip "(2) " notification badge
-    .replace(/\s*[•·|]\s*Instagram\b.*/i, "")   // strip "• Instagram" suffix
+    .replace(/\s*[|]\s*Instagram\b.*/i, "")   // strip " Instagram" suffix
     .replace(/\s*on Instagram\s*$/i, "")         // strip "on Instagram"
     .replace(/\s*[-]\s*Instagram\s*$/i, "")      // strip "- Instagram"
     .trim();
@@ -375,13 +375,13 @@ function extractFromTitle(): string {
   return title.slice(0, MAX_TEXT_CHARS);
 }
 
-// ─── OG-tag fetch (primary, most reliable) ────────────────────────────────────
+//  OG-tag fetch (primary, most reliable) 
 
 /**
  * Fetch the reel's own page (same-origin, user's cookies included) and
  * extract the caption from the server-rendered `og:description` meta tag.
  *
- * Instagram always sets og:description for public reels — it's used for
+ * Instagram always sets og:description for public reels  it's used for
  * link previews and SEO. Format:
  *   "1,234 Likes, 56 Comments - username on Instagram: "caption text""
  *
@@ -404,7 +404,7 @@ async function fetchOgData(reelId: string): Promise<OgData> {
     if (!resp.ok) return empty;
     const html = await resp.text();
 
-    // ── Caption from og:description ─────────────────────────────────────────
+    //  Caption from og:description 
     const ogMatch = html.match(
       /<meta\s+property="og:description"\s+content="([^"]+)"/i
     ) ?? html.match(
@@ -437,20 +437,20 @@ async function fetchOgData(reelId: string): Promise<OgData> {
       if (!isJunk(desc)) caption = desc.slice(0, MAX_TEXT_CHARS);
     }
 
-    // ── Video URL ────────────────────────────────────────────────────────────
+    //  Video URL 
     // Used by the backend to download audio for Whisper transcription.
     // Strategy 1: "video_url":"https://scontent..." in the embedded page JSON
     //   (Instagram always includes this in the server-rendered HTML blob)
     // Strategy 2: og:video meta tag (present on some reels, absent on others)
-    // Note: <video>.src in the DOM is a blob: URL — unusable by the backend.
+    // Note: <video>.src in the DOM is a blob: URL  unusable by the backend.
     let videoUrl = "";
 
     // Strategy 1: look for "video_url":"..." in the page JSON
     const jsonVideoMatch = html.match(/"video_url"\s*:\s*"(https?:[^"]+)"/);
     if (jsonVideoMatch) {
       videoUrl = jsonVideoMatch[1]
-        .replace(/\\u0026/g, "&")   // \u0026 → &
-        .replace(/\\\//g, "/");     // \/ → /
+        .replace(/\\u0026/g, "&")   // \u0026  &
+        .replace(/\\\//g, "/");     // \/  /
     }
 
     // Strategy 2: og:video meta tag fallback
@@ -469,7 +469,7 @@ async function fetchOgData(reelId: string): Promise<OgData> {
   }
 }
 
-// ─── Main extraction ──────────────────────────────────────────────────────────
+//  Main extraction 
 
 export async function extractInstagramReelsContent(): Promise<ExtractionResult> {
   const observedAt = Date.now();
@@ -484,7 +484,7 @@ export async function extractInstagramReelsContent(): Promise<ExtractionResult> 
   const reelId = getCurrentReelId();
   const fingerprint = computeFingerprint(reelId, "");
 
-  // Strategy 1: og:description + og:video fetch — reliable, server-rendered
+  // Strategy 1: og:description + og:video fetch  reliable, server-rendered
   const ogData = await fetchOgData(reelId);
   let text = ogData.caption;
   let source = text ? "og:description" : "";
@@ -526,9 +526,9 @@ export async function extractInstagramReelsContent(): Promise<ExtractionResult> 
     : undefined;
 
   console.log(`[ABR-IG] [${source}] "${text.slice(0, 100)}" | reelId=${reelId}`);
-  if (musicInfo) console.log(`[ABR-IG] 🎵 Music: ${musicInfo}`);
-  if (audioUrl)  console.log(`[ABR-IG] 🎙️  audioUrl found (will transcribe)`);
-  if (topComments.length) console.log(`[ABR-IG] 💬 Comments (${topComments.length}): ${topComments[0]?.slice(0, 60)}`);
+  if (musicInfo) console.log(`[ABR-IG]  Music: ${musicInfo}`);
+  if (audioUrl)  console.log(`[ABR-IG]   audioUrl found (will transcribe)`);
+  if (topComments.length) console.log(`[ABR-IG]  Comments (${topComments.length}): ${topComments[0]?.slice(0, 60)}`);
 
   return {
     supported: true, contentAvailable: true,

@@ -1,15 +1,15 @@
 """
 server.py
 
-Anti Brain Rot — FastAPI backend.
+Anti Brain Rot  FastAPI backend.
 
 Supports two deployment modes:
   - Local dev:   python -m src.server  (binds 127.0.0.1:8787)
   - Cloud Run:   PORT env var set by GCP, binds 0.0.0.0:$PORT
 
 AI Provider selection (set in .env or Cloud Run env vars):
-  GEMINI_API_KEY   → GeminiProvider  (recommended for GCP deployment)
-  DEEPSEEK_API_KEY → DeepSeekProvider (local dev alternative)
+  GEMINI_API_KEY    GeminiProvider  (recommended for GCP deployment)
+  DEEPSEEK_API_KEY  DeepSeekProvider (local dev alternative)
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Anti Brain Rot — Backend",
+    title="Anti Brain Rot  Backend",
     description=(
         "Content analysis backend. Powered by Google Gemini (gemini-1.5-flash) "
         "via Vertex AI / Google AI Studio. Deployed on Cloud Run."
@@ -44,7 +44,7 @@ app = FastAPI(
     redoc_url=None,
 )
 
-# ─── CORS ──────────────────────────────────────────────────────────────────────
+#  CORS 
 # Allow Chrome extension origins (chrome-extension://*) and localhost for dev.
 # Cloud Run serves HTTPS so the extension service worker can call it directly.
 app.add_middleware(
@@ -55,7 +55,7 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-# ─── Routes ───────────────────────────────────────────────────────────────────
+#  Routes 
 app.include_router(analyze_router, prefix="/api")
 app.include_router(transcribe_router, prefix="/api")
 
@@ -66,7 +66,7 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# ─── Dev entrypoint ───────────────────────────────────────────────────────────
+#  Dev entrypoint 
 if __name__ == "__main__":
     import uvicorn
 

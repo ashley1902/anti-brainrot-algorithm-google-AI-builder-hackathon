@@ -1,4 +1,4 @@
-# ─── Anti Brain Rot — Cloud Run Backend ──────────────────────────────────────
+#  Anti Brain Rot  Cloud Run Backend 
 # Uses requirements-cloud.txt (no faster-whisper) for a lean ~250 MB image.
 # Cloud Run sets PORT automatically; uvicorn binds 0.0.0.0:$PORT.
 
@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir -r requirements-cloud.txt
 
 # Copy source
 COPY src/ ./src/
-# NOTE: .env is intentionally NOT copied — secrets are injected at deploy time
+# NOTE: .env is intentionally NOT copied  secrets are injected at deploy time
 # via Cloud Run --set-env-vars or Secret Manager.
 
 # Cloud Run provides PORT; default to 8080 for local docker run

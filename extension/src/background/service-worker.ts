@@ -1,7 +1,7 @@
 /**
  * service-worker.ts
  *
- * MV3 Service Worker — message router and API bridge.
+ * MV3 Service Worker  message router and API bridge.
  *
  * IMPORTANT: MV3 service workers can be suspended at any time.
  * Do NOT rely on module-level globals as the only session store.
@@ -24,7 +24,7 @@ import { computeContentImpact } from "../session/scoring";
 import type { ContentFeatures, DailyLogEntry, ExtensionMessage, Settings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 
-// ─── Session Engine ───────────────────────────────────────────────────────────
+//  Session Engine 
 // NOTE: This is reset whenever the service worker is restarted.
 // V0.1 accepts this limitation; V0.2 can persist to chrome.storage.session.
 let sessionManager = new SessionManager(DEFAULT_SETTINGS);
@@ -34,24 +34,24 @@ let currentSettings: Settings = DEFAULT_SETTINGS;
 const MAX_REQUESTS_PER_SESSION = 60;
 let requestsThisSession = 0;
 
-// Global fingerprint dedup — survives content script restarts.
+// Global fingerprint dedup  survives content script restarts.
 // Also persisted to chrome.storage.session so SW restarts within the same
 // browser session don't re-analyze content already seen.
 const seenFingerprints = new Set<string>();
 
-// Text-level dedup — catches same caption text arriving with different
+// Text-level dedup  catches same caption text arriving with different
 // fingerprints (e.g. multiple reels that use identical hashtag-only captions,
 // or stale DOM giving a previous reel's text to a new reel's ID).
 const seenTexts = new Set<string>();
 
 function persistFingerprints(): void {
-  // Fire-and-forget — don't block the message handler
+  // Fire-and-forget  don't block the message handler
   chrome.storage.session
     .set({ seenFingerprints: [...seenFingerprints] })
     .catch(() => {});
 }
 
-// ─── Initialise ───────────────────────────────────────────────────────────────
+//  Initialise 
 async function init(): Promise<void> {
   currentSettings = await loadSettings();
   sessionManager = new SessionManager(currentSettings);
@@ -68,42 +68,42 @@ async function init(): Promise<void> {
       );
     }
   } catch {
-    // chrome.storage.session not available (older Chrome) — silent fallback
+    // chrome.storage.session not available (older Chrome)  silent fallback
   }
 }
 
 init().catch(console.error);
 
-// ─── SW keepalive (prevent suspension during async work) ─────────────────────
+//  SW keepalive (prevent suspension during async work) 
 // MV3 service workers are aggressively suspended. We set up a 20s alarm so
 // Chrome keeps the SW alive while waiting for Whisper / backend responses.
 chrome.alarms.create("keepalive", { periodInMinutes: 0.4 }); // every ~24s
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "keepalive") {
-    // Touch storage to prove we're alive — prevents Chrome from killing us
+    // Touch storage to prove we're alive  prevents Chrome from killing us
     chrome.storage.session.set({ swLastPing: Date.now() }).catch(() => {});
   }
 });
-console.log("[ABR SW] 🟢 Service worker started");
+console.log("[ABR SW]  Service worker started");
 
-// ─── Instagram CDN video URL capture (webRequest) ────────────────────────────
+//  Instagram CDN video URL capture (webRequest) 
 // When Instagram streams a reel, the browser fetches the actual .mp4 file from
 // scontent*.cdninstagram.com. We intercept that request passively (MV3 still
 // allows read-only webRequest observation) and store it per tab.
 // This gives us a real downloadable URL even though <video>.src is a blob: URL
 // and the server-rendered HTML doesn't include the video URL for logged-in users.
-const tabVideoUrls = new Map<number, string>(); // tabId → latest CDN video URL
+const tabVideoUrls = new Map<number, string>(); // tabId  latest CDN video URL
 
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
     if (details.tabId < 0) return;
     const url = details.url;
     // Capture any video-like URL from Instagram's CDN domains.
-    // Instagram uses MSE — video chunks arrive via XHR/fetch, NOT as <video> media requests.
+    // Instagram uses MSE  video chunks arrive via XHR/fetch, NOT as <video> media requests.
     // CDN domains: scontent*.cdninstagram.com, scontent*.fbcdn.net (Facebook CDN)
     if (url.includes(".mp4") || url.includes(".m4v") || url.includes(".m4a")) {
       tabVideoUrls.set(details.tabId, url);
-      console.log(`[ABR SW] 📹 CDN video captured for tab ${details.tabId}: ${url.slice(0, 100)}…`);
+      console.log(`[ABR SW]  CDN video captured for tab ${details.tabId}: ${url.slice(0, 100)}`);
     }
   },
   {
@@ -116,12 +116,12 @@ chrome.webRequest.onBeforeRequest.addListener(
   }
 );
 
-// ─── Context enrichment ───────────────────────────────────────────────────────
+//  Context enrichment 
 
 /**
  * Build the enriched text to send to DeepSeek.
  * Appends audio track and top comments to the caption so the AI has
- * full context about the reel/short (Option A — all in one text field).
+ * full context about the reel/short (Option A  all in one text field).
  */
 function buildEnrichedText(
   caption: string,
@@ -150,8 +150,8 @@ function buildEnrichedText(
   return parts.join("").slice(0, 2000);
 }
 
-// ─── Transcribe call ──────────────────────────────────────────────────────────
-const TRANSCRIBE_TIMEOUT_MS = 25000; // Whisper small CPU can take ~5–10s
+//  Transcribe call 
+const TRANSCRIBE_TIMEOUT_MS = 25000; // Whisper small CPU can take ~510s
 
 async function callTranscribeBackend(
   audioUrl: string,
@@ -174,7 +174,7 @@ async function callTranscribeBackend(
       return "";
     }
     const data = (await response.json()) as { transcript: string };
-    console.log(`[ABR SW] 🎙️  Transcript: "${(data.transcript ?? "").slice(0, 80)}"`);
+    console.log(`[ABR SW]   Transcript: "${(data.transcript ?? "").slice(0, 80)}"`);
     return data.transcript ?? "";
   } catch (err) {
     clearTimeout(timeout);
@@ -187,7 +187,7 @@ async function callTranscribeBackend(
   }
 }
 
-// ─── Backend call ─────────────────────────────────────────────────────────────
+//  Backend call 
 const ANALYSIS_TIMEOUT_MS = 12000;
 
 async function callBackend(
@@ -226,7 +226,7 @@ async function callBackend(
   }
 }
 
-// ─── Message handling ─────────────────────────────────────────────────────────
+//  Message handling 
 chrome.runtime.onMessage.addListener(
   (message: ExtensionMessage, sender, sendResponse) => {
     handleMessage(message, sender).then(sendResponse).catch((err) => {
@@ -258,20 +258,20 @@ async function handleMessage(
         : undefined;
       const audioUrl = adapterAudioUrl || cdnVideoUrl;
 
-      console.log(`[ABR SW] 📨 CONTENT_DETECTED: src=${source} fp=${fingerprint} hasMusic=${!!musicInfo}`);
+      console.log(`[ABR SW]  CONTENT_DETECTED: src=${source} fp=${fingerprint} hasMusic=${!!musicInfo}`);
 
-      // Dedup by URL fingerprint — survives content script restarts
+      // Dedup by URL fingerprint  survives content script restarts
       if (seenFingerprints.has(fingerprint)) {
-        console.log(`[ABR SW] ⏭️  Skipping duplicate fingerprint: ${fingerprint}`);
+        console.log(`[ABR SW]   Skipping duplicate fingerprint: ${fingerprint}`);
         return { ok: false, reason: "duplicate" };
       }
       seenFingerprints.add(fingerprint);
       persistFingerprints();
 
-      // Dedup by text — catches same caption on multiple reel IDs
+      // Dedup by text  catches same caption on multiple reel IDs
       // (hashtag-only bait captions, stale DOM race conditions, etc.)
       if (seenTexts.has(text)) {
-        console.log(`[ABR SW] ⏭️  Skipping duplicate text`);
+        console.log(`[ABR SW]   Skipping duplicate text`);
         return { ok: false, reason: "duplicate_text" };
       }
       seenTexts.add(text);
@@ -279,11 +279,11 @@ async function handleMessage(
       requestsThisSession++;
       sessionManager.recordObservedItem();
 
-      // Whisper transcription — only when no music track was identified
+      // Whisper transcription  only when no music track was identified
       // (original audio: vlogs, comedy, talking-head content, etc.)
       let transcript: string | undefined;
       if (!musicInfo && audioUrl) {
-        console.log("[ABR SW] 🎙️  Original audio detected — requesting transcription…");
+        console.log("[ABR SW]   Original audio detected  requesting transcription");
         const t = await callTranscribeBackend(audioUrl, source);
         if (t) transcript = t;
       }
@@ -298,7 +298,7 @@ async function handleMessage(
       if (features) {
         sessionManager.addAnalyzedItem(features, fingerprint);
 
-        // ── Persist to daily analytics log ────────────────────────────────
+        //  Persist to daily analytics log 
         const todayKey = `dailyLog_${new Date().toISOString().slice(0, 10)}`;
         const entry: DailyLogEntry = {
           timestamp: Date.now(),
