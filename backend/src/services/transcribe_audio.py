@@ -38,10 +38,12 @@ def _get_model():
             print("✅ [Whisper] Model ready!\n", flush=True)
             logger.info("[Whisper] Model ready.")
         except ImportError:
-            raise RuntimeError(
-                "faster-whisper is not installed. "
-                "Run: pip install faster-whisper"
+            logger.warning(
+                "[Whisper] faster-whisper not installed — transcription disabled. "
+                "Analysis will continue using caption + audio track + comments only."
             )
+            _whisper_model = "unavailable"  # sentinel so we don't retry
+            return None
     return _whisper_model
 
 
@@ -109,8 +111,10 @@ async def transcribe_from_url(audio_url: str) -> str:
     """
     tmp_path: Optional[str] = None
     try:
-        tmp_path = await _download_audio(audio_url)
         model = _get_model()
+        if model is None or model == "unavailable":
+            return ""
+        tmp_path = await _download_audio(audio_url)
 
         segments, info = model.transcribe(
             tmp_path,

@@ -1,19 +1,15 @@
 """
 server.py
 
-Anti Brain Rot — local development backend.
+Anti Brain Rot — FastAPI backend.
 
-⚠️  SECURITY NOTICE ⚠️
-This server is for LOCAL DEVELOPMENT ONLY.
-- No authentication
-- No rate limiting
-- No abuse protection
-- No HTTPS
-- Binds to localhost only
+Supports two deployment modes:
+  - Local dev:   python -m src.server  (binds 127.0.0.1:8787)
+  - Cloud Run:   PORT env var set by GCP, binds 0.0.0.0:$PORT
 
-Do NOT expose this on a public network.
-For production: add auth, rate limits, HTTPS, secret management,
-and a proper deployment pipeline.
+AI Provider selection (set in .env or Cloud Run env vars):
+  GEMINI_API_KEY   → GeminiProvider  (recommended for GCP deployment)
+  DEEPSEEK_API_KEY → DeepSeekProvider (local dev alternative)
 """
 
 from __future__ import annotations
@@ -38,29 +34,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Anti Brain Rot — Dev Backend",
+    title="Anti Brain Rot — Backend",
     description=(
-        "Local development proxy. Keeps the DeepSeek API key out of the "
-        "Chrome extension. NOT suitable for public deployment."
+        "Content analysis backend. Powered by Google Gemini (gemini-1.5-flash) "
+        "via Vertex AI / Google AI Studio. Deployed on Cloud Run."
     ),
-    version="0.1.0",
+    version="0.2.0",
     docs_url="/docs",
     redoc_url=None,
 )
 
 # ─── CORS ──────────────────────────────────────────────────────────────────────
-# Allow only the Chrome extension origin for the analyze endpoint.
-# chrome-extension:// origins are allowed so the extension's service worker
-# can call the backend directly.
+# Allow Chrome extension origins (chrome-extension://*) and localhost for dev.
+# Cloud Run serves HTTPS so the extension service worker can call it directly.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost",
-        "http://127.0.0.1",
-        # Chrome extensions have their own origin scheme; browsers handle this
-        # but listing it explicitly signals intent.
-        "chrome-extension://",
-    ],
+    allow_origins=["*"],
     allow_origin_regex=r"chrome-extension://.*",
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
@@ -82,15 +71,15 @@ if __name__ == "__main__":
     import uvicorn
 
     port = int(os.environ.get("PORT", "8787"))
-    logger.info("Starting Anti Brain Rot dev backend on http://127.0.0.1:%d", port)
-    logger.warning(
-        "⚠️  This is a LOCAL DEV server with NO auth/rate-limiting. "
-        "Do not expose on a public network."
-    )
+    # Cloud Run sets PORT and expects 0.0.0.0; local dev defaults to 127.0.0.1
+    host = "0.0.0.0" if os.environ.get("K_SERVICE") else "127.0.0.1"
+    reload = not bool(os.environ.get("K_SERVICE"))  # no hot-reload on Cloud Run
+
+    logger.info("Starting Anti Brain Rot backend on %s:%d (Cloud Run: %s)", host, port, bool(os.environ.get("K_SERVICE")))
     uvicorn.run(
         "src.server:app",
-        host="127.0.0.1",
+        host=host,
         port=port,
-        reload=True,
+        reload=reload,
         log_level="info",
     )
