@@ -18,10 +18,12 @@ RUN pip install --no-cache-dir -r requirements-cloud.txt
 
 # Copy source
 COPY src/ ./src/
-COPY .env.example .env.example
+# NOTE: .env is intentionally NOT copied — secrets are injected at deploy time
+# via Cloud Run --set-env-vars or Secret Manager.
 
 # Cloud Run provides PORT; default to 8080 for local docker run
 ENV PORT=8080
+ENV GEMINI_MODEL=gemini-2.0-flash-lite
 
 # Tell Python not to buffer stdout so Cloud Run sees logs immediately
 ENV PYTHONUNBUFFERED=1
