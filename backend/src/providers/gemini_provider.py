@@ -43,7 +43,7 @@ class GeminiProvider(AIProvider):
             )
         genai.configure(api_key=api_key)
         self._model = genai.GenerativeModel(
-            model_name=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-lite"),
+            model_name=os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite"),
             system_instruction=SYSTEM_PROMPT,
             generation_config=genai.GenerationConfig(
                 response_mime_type="application/json",

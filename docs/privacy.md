@@ -15,9 +15,9 @@ It does **not** read:
 
 ## Where data goes
 
-In V0.1, extracted text is sent from the extension's service worker to a **localhost backend** running on your own machine. The localhost backend then calls the **DeepSeek API** (a cloud service) to classify the content.
+Extracted text is sent from the extension's service worker to a **cloud backend** hosted on Google Cloud Run. The backend calls the **Google Gemini API** (`gemini-2.0-flash-lite`) to classify the content.
 
-**V0.1 is not fully on-device.** Text leaves your device to reach DeepSeek's servers. You should review DeepSeek's current data-handling and privacy terms before real-world use.
+**Text leaves your device** to reach Google's servers for AI classification. You should review [Google's Privacy Policy](https://policies.google.com/privacy) and [Gemini API Terms](https://ai.google.dev/terms) before real-world use. No extracted text is stored by the backend — it is discarded immediately after classification.
 
 ## What is stored
 
@@ -27,7 +27,7 @@ In V0.1, extracted text is sent from the extension's service worker to a **local
 | AI classification features (numbers, tags) | Extension memory only | Until session ends or extension restarts |
 | Session metrics (duration, item count) | Extension memory only | Until session ends |
 | User settings | `chrome.storage.local` (on-device) | Until you clear or uninstall |
-| DeepSeek API key | Backend `.env` file on your machine | You control |
+| Gemini API key | Google Cloud Run environment variable (server-side only) | You control |
 | API key in extension | **Never**  by design | Not applicable |
 
 ## What is never collected
